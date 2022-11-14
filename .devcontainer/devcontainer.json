@@ -26,5 +26,10 @@
 		"serayuzgur.crates",
 		"panicbit.cargo",
 		"belfz.search-crates-io"
-	]
+	],
+    "hostRequirements": {
+        "cpus": 4,
+        "memory": "8gb",
+        "storage": "32gb"
+    }
 }
