@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 #
 # This script will be executed by `cargo run`.
 
@@ -36,6 +36,7 @@ target/limine/limine-deploy $KERNEL.iso
 
 # Run the created image with QEMU.
 qemu-system-aarch64 \
+    $QEMU_FLAGS \
     -cpu cortex-a57 -M virt \
     -D target/aarch64-log.txt -d int,guest_errors -no-reboot -no-shutdown \
     -bios /usr/share/AAVMF/AAVMF_CODE.fd \

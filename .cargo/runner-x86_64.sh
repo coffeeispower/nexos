@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 #
 # This script will be executed by `cargo run`.
 
@@ -36,8 +36,9 @@ target/limine/limine-deploy $KERNEL.iso
 
 # Run the created image with QEMU.
 qemu-system-x86_64 \
-    --enable-kvm \
+    $QEMU_FLAGS \
     -machine q35 -cpu qemu64 -M smm=off \
+    -bios /usr/share/OVMF/OVMF_CODE.fd \
     -D target/x86_64-log.txt -d int,guest_errors \
     -serial stdio \
     $KERNEL.iso
