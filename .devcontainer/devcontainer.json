@@ -1,6 +1,6 @@
 {
 	"name": "Tynix",
-	"image": "mcr.microsoft.com/devcontainers/rust:1-buster",
+    "build": { "dockerfile": "Dockerfile" },
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {}
 	},
