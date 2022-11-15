@@ -40,7 +40,7 @@ qemu-system-aarch64 \
     -cpu cortex-a57 -M virt \
     -D target/aarch64-log.txt -d int,guest_errors -no-reboot -no-shutdown \
     -bios /usr/share/AAVMF/AAVMF_CODE.fd \
-    -m 1024 \
+    -m 1GB \
     -serial stdio \
     -device ramfb \
     $KERNEL.iso

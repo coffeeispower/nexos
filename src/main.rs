@@ -3,12 +3,14 @@
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
 #![feature(naked_functions)]
-pub mod arch;
-pub mod interrupts;
 #[macro_use]
 pub mod io;
 #[macro_use]
 pub mod panic;
+pub mod arch;
+pub mod bitmap_allocator;
+pub mod interrupts;
+
 use limine::LimineBootInfoRequest;
 static BOOTLOADER_INFO: LimineBootInfoRequest = LimineBootInfoRequest::new(0);
 
@@ -29,5 +31,7 @@ pub extern "C" fn _start() -> ! {
         );
     }
     interrupts::load_interrupts();
+    let allocator = bitmap_allocator::BitmapAllocator::from_mmap();
+    println!("{:#?}", allocator.number_of_pages());
     panic!("Reached end of main function")
 }
