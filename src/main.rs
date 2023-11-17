@@ -11,7 +11,7 @@ pub mod arch;
 pub mod bitmap_allocator;
 pub mod interrupts;
 
-use limine::LimineBootInfoRequest;
+use limine::BootInfoRequest as LimineBootInfoRequest;
 static BOOTLOADER_INFO: LimineBootInfoRequest = LimineBootInfoRequest::new(0);
 
 /// Kernel Entry Point

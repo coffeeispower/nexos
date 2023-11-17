@@ -1,11 +1,11 @@
 use core::fmt;
-use limine::LimineTerminalRequest;
+use limine::TerminalRequest as LimineTerminalRequest;
 use spin::Mutex;
 
 static TERMINAL_REQUEST: LimineTerminalRequest = LimineTerminalRequest::new(0);
 
 struct Writer {
-    terminals: Option<&'static limine::LimineTerminalResponse>,
+    terminals: Option<&'static limine::TerminalResponse>,
 }
 
 unsafe impl Send for Writer {}

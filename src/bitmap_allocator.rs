@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use limine::{LimineMemmapRequest, NonNullPtr};
+use limine::{MemmapRequest as LimineMemmapRequest, NonNullPtr};
 use spin::{Mutex, MutexGuard};
 static PAGE_SIZE: usize = 0x1000;
 static MEMMAP_REQ: LimineMemmapRequest = LimineMemmapRequest::new(0);
@@ -118,7 +118,7 @@ impl BitmapAllocator {
         let mut largest_mem_start: Option<*mut u8> = None;
         let mut largest_mem_size: Option<u64> = None;
         for entry in entries {
-            if let limine::LimineMemoryMapEntryType::Usable = entry.typ {
+            if let limine::MemoryMapEntryType::Usable = entry.typ {
                 if largest_mem_size.is_none() {
                     largest_mem_size = Some(entry.len);
                     largest_mem_start = Some((entry.base as usize) as *mut u8);
