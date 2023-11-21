@@ -8,7 +8,7 @@
             "type": "lldb",
             "request": "custom",
             "name": "Debug kernel",
-            "targetCreateCommands": ["target create ${workspaceFolder}/target/x86_64/debug/europa_os"],
+            "targetCreateCommands": ["target create ${workspaceFolder}/target/x86_64/debug/tinyx"],
             "processCreateCommands": ["gdb-remote localhost:1234"]
         }
     ]

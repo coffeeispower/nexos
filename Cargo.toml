@@ -2,15 +2,20 @@
 name = "tinyx"
 version = "0.1.0"
 edition = "2021"
+authors = ["Tiago Dinis <tiagodinis33@proton.me>"]
+
 [dependencies]
 spin = "0.9.4"
-limine = "0.1.9"
+limine = "0.1.12"
+bitflags = "2.4.1"
 # backtrace = { version = "0.3.66", default-features = false }
-[target.'cfg(target_arch = "aarch64")'.dependencies]
-tock-registers = "0.8"
-aarch64-cpu = "9"
-[target.'cfg(target_arch = "x86_64")'.dependencies]
-x86_64 = "0.14.10"
+
 [dependencies.lazy_static]
 version = "1.0"
 features = ["spin_no_std"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1

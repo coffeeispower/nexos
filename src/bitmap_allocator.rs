@@ -10,7 +10,7 @@ pub struct BitMap {
 impl BitMap {
     /// Creates a new bitmap
     /// # Safety
-    /// The bitmap address and size are arbitrary, so safety cannot be guaranteed.
+    /// The caller must ensure the bitmap is placed in a safe place in memory
     pub unsafe fn new(bitmap_pointer: *mut u8, size: usize) -> Self{
         Self {
             bitmap: bitmap_pointer,
@@ -24,11 +24,12 @@ impl BitMap {
         } else {
             let div_index = index/8;
             let offset = index % 8;
+            let byte_addr = unsafe { self.bitmap.offset(div_index.try_into().expect("div_index doesn't fit into a isize")) };
             let byte = unsafe {
-                 *self.bitmap.add(div_index)
+                 *byte_addr
             };
             unsafe {
-                *self.bitmap.add(div_index) = if value {
+                *byte_addr = if value {
                     byte | (128 >> offset)
                 } else {
                     byte ^ (128 >> offset)
