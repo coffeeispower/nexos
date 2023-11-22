@@ -15,9 +15,8 @@ pub mod bitmap_allocator;
 pub mod interrupts;
 pub mod test_runner;
 
-use limine::BootInfoRequest as LimineBootInfoRequest;
-static BOOTLOADER_INFO: LimineBootInfoRequest = LimineBootInfoRequest::new(0);
-
+use limine::BootInfoRequest;
+static BOOTLOADER_INFO: BootInfoRequest = BootInfoRequest::new(0);
 /// Kernel Entry Point
 ///
 /// `_start` is defined in the linker script as the entry point for the ELF file.

@@ -1,8 +1,8 @@
 use core::panic::PanicInfo;
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    println!("Kernel got a high five with a pan: {}", _info);
+fn panic(info: &PanicInfo) -> ! {
+    println!("Kernel got a high five with a pan: {}", info);
     // TODO: Show backtrace on panic, we need to implement a heap allocator first
     /*
     if option_env!("RUST_BACKTRACE").is_some() {

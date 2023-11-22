@@ -1,5 +1,3 @@
-use crate::arch;
-
 pub fn load_interrupts() {
     #[cfg(target_arch = "x86_64")]
     {
