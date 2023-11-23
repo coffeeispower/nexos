@@ -55,7 +55,7 @@ impl BitMap {
             let div_index = index / 8;
             let offset = index % 8;
             unsafe {
-                *self.bitmap.add(div_index) |= 128 >> offset;
+                *self.bitmap.byte_add(div_index) |= 128 >> offset;
             }
             Some(())
         }
@@ -68,7 +68,7 @@ impl BitMap {
             let div_index = index / 8;
             let offset = index % 8;
             unsafe {
-                *self.bitmap.add(div_index) ^= 128 >> offset;
+                *self.bitmap.byte_add(div_index) ^= 128 >> offset;
             }
             Some(())
         }
@@ -99,7 +99,7 @@ impl BitMap {
         } else {
             let div_index = index / 8;
             let offset = index % 8;
-            let byte = unsafe { *self.bitmap.add(div_index) };
+            let byte = unsafe { *self.bitmap.byte_add(div_index) };
             let masked_byte = byte & (128 >> offset);
             Some(masked_byte > 0)
         }
@@ -113,7 +113,7 @@ pub struct BitmapAllocator {
     pub bitmap: BitMap,
     pub memory_region_start: *mut (),
     pub memory_region_size: usize,
-    pub lock: AtomicBool
+    pub lock: AtomicBool,
 }
 impl BitmapAllocator {
     pub fn number_of_pages(&self) -> usize {
@@ -152,20 +152,25 @@ impl BitmapAllocator {
             },
             memory_region_size: largest_mem_size,
             memory_region_start: largest_mem_start,
-            lock: AtomicBool::new(false)
+            lock: AtomicBool::new(false),
         };
-        allocator.lock_pages(allocator.memory_region_start, allocator.number_of_pages() / 8);
+        allocator.lock_pages(
+            allocator.memory_region_start,
+            allocator.number_of_pages() / 8,
+        );
         allocator
     }
     fn lock_bitmap(&self) {
-        while self.lock.swap(true, Ordering::SeqCst) { core::hint::spin_loop() }
+        while self.lock.swap(true, Ordering::SeqCst) {
+            core::hint::spin_loop()
+        }
     }
     fn unlock_bitmap(&self) {
         self.lock.store(false, Ordering::SeqCst);
     }
     pub fn lock_pages<T>(&self, addr: *mut T, size: usize) {
         self.lock_bitmap();
-        let rel_addr = unsafe { addr.sub_ptr(self.bitmap.bitmap.cast()) };
+        let rel_addr = addr as usize - self.bitmap.bitmap as usize;
         let page = rel_addr.div_floor(PAGE_SIZE);
         let page_end = page + (size / PAGE_SIZE);
         for i in page..=page_end {
@@ -178,7 +183,7 @@ impl BitmapAllocator {
     }
     pub fn free_pages<T>(&self, addr: *mut T, size: usize) {
         self.lock_bitmap();
-        let rel_addr = unsafe { addr.sub_ptr(self.bitmap.bitmap.cast()) };
+        let rel_addr = addr as usize - self.bitmap.bitmap as usize;
         let page = rel_addr.div_floor(PAGE_SIZE);
         let page_end = page + (size / PAGE_SIZE);
         for i in page..=page_end {
@@ -211,4 +216,3 @@ unsafe impl Send for BitmapAllocator {}
 unsafe impl Sync for BitmapAllocator {}
 lazy_static! {
     pub static ref GLOBAL_PAGE_ALLOCATOR: BitmapAllocator = BitmapAllocator::from_mmap();
-}
