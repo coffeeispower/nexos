@@ -14,7 +14,7 @@ pub unsafe fn write(port: u16, data: u8) {
 /// # Safety
 /// This is unsafe because the caller must ensure the port is correct, otherwise it may cause undefined behavior
 pub unsafe fn read(port: u16)  -> u8 {
-    let mut data = 0u8;
+    let mut data;
     asm!("in al, dx", out("al") data, in("dx") port, options(nomem, nostack, preserves_flags));
     data
 }
