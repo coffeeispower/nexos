@@ -2,7 +2,15 @@ use core::panic::PanicInfo;
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    #[cfg(not(test))]
     println!("Kernel got a high five with a pan: {}", info);
+    #[cfg(test)]
+    {
+        println!("\x1b[1;31mfail\x1b[1;0m");
+        println!("---------- Test Error Message ----------");
+        println!("{}", info);
+        println!("----------------------------------------");
+    }
     // TODO: Show backtrace on panic, we need to implement a heap allocator first
     /*
     if option_env!("RUST_BACKTRACE").is_some() {
