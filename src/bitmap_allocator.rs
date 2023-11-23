@@ -39,9 +39,9 @@ impl BitMap {
             let byte = unsafe { *byte_addr };
             unsafe {
                 *byte_addr = if value {
-                    byte | (128 >> offset)
+                    byte | (0b10000000u8 >> offset)
                 } else {
-                    byte ^ (128 >> offset)
+                    byte ^ (0b10000000u8 >> offset)
                 };
             }
             Some(())
@@ -55,7 +55,7 @@ impl BitMap {
             let div_index = index / 8;
             let offset = index % 8;
             unsafe {
-                *self.bitmap.byte_add(div_index) |= 128 >> offset;
+                *self.bitmap.byte_add(div_index) |= 0b10000000 >> offset;
             }
             Some(())
         }
@@ -68,7 +68,7 @@ impl BitMap {
             let div_index = index / 8;
             let offset = index % 8;
             unsafe {
-                *self.bitmap.byte_add(div_index) ^= 128 >> offset;
+                *self.bitmap.byte_add(div_index) ^= 0b10000000 >> offset;
             }
             Some(())
         }
@@ -100,8 +100,8 @@ impl BitMap {
             let div_index = index / 8;
             let offset = index % 8;
             let byte = unsafe { *self.bitmap.byte_add(div_index) };
-            let masked_byte = byte & (128 >> offset);
-            Some(masked_byte > 0)
+            let masked_byte = byte & (0b10000000 >> offset);
+            Some(masked_byte >= 1)
         }
     }
 }
@@ -147,7 +147,7 @@ impl BitmapAllocator {
             bitmap: unsafe {
                 BitMap::new(
                     largest_mem_start.cast(),
-                    largest_mem_size.div_ceil(PAGE_SIZE),
+                    largest_mem_size.div_ceil(PAGE_SIZE*8),
                 )
             },
             memory_region_size: largest_mem_size,
@@ -216,3 +216,41 @@ unsafe impl Send for BitmapAllocator {}
 unsafe impl Sync for BitmapAllocator {}
 lazy_static! {
     pub static ref GLOBAL_PAGE_ALLOCATOR: BitmapAllocator = BitmapAllocator::from_mmap();
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // Basic tests for BitMap
+    #[test]
+    fn test_set_bit() {
+        let mut bitmap_data = [0u8; 2];
+        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2) };
+
+        bitmap.try_set(2).expect("Failed to set bit");
+        assert_eq!(bitmap_data[0], 0b00100000);
+        assert_eq!(bitmap_data[1], 0);
+
+        bitmap.try_set(13).expect("Failed to set bit");
+        assert_eq!(bitmap_data[0], 0b00100000);
+        assert_eq!(bitmap_data[1], 0b00000100);
+    }
+
+    #[test]
+    fn test_get_bit() {
+        let mut bitmap_data = [0u8; 2];
+        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2) };
+        bitmap_data = [0b00101000u8; 2];
+        assert_eq!(bitmap.try_get(4), Some(true));
+        assert_eq!(bitmap.try_get(13), Some(false));
+        assert_eq!(bitmap.try_get(2), Some(true));
+    }
+
+    #[test]
+    fn test_out_of_bounds_set() {
+        let mut bitmap_data = [0u8; 2];
+        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2) };
+
+        // Index out of bounds, should return None
+        assert_eq!(bitmap.try_set(20), None);
+    }
+}
