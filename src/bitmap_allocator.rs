@@ -1,4 +1,7 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    ptr::NonNull,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use lazy_static::lazy_static;
 use limine::MemmapRequest;
@@ -122,6 +125,7 @@ impl BitmapAllocator {
         (self.bitmap.bitmap_size) * 8
     }
     pub fn from_mmap() -> Self {
+        println!("Creating new bitmap allocator from memory map");
         let memory_map = MEMMAP_REQ.get_response();
         let memory_map = memory_map.get().expect("memory map should be available");
         let entries = memory_map.memmap();
@@ -150,25 +154,30 @@ impl BitmapAllocator {
                 BitMap::new(
                     largest_mem_start.cast(),
                     largest_mem_size.div_ceil(PAGE_SIZE * 8),
-                    true
+                    true,
                 )
             },
             memory_region_size: largest_mem_size,
             memory_region_start: largest_mem_start,
             lock: AtomicBool::new(false),
         };
+        println!("Locking bitmap pages");
         allocator.lock_pages(
             allocator.memory_region_start,
             allocator.number_of_pages() / 8,
         );
+        println!("Bitmap allocator created successfully");
         allocator
     }
     fn lock_bitmap(&self) {
         while self.lock.swap(true, Ordering::SeqCst) {
-            core::hint::spin_loop()
+            core::hint::spin_loop();
+            print!("Waiting for bitmap to unlock\r");
         }
+        println!("Locked bitmap");
     }
     fn unlock_bitmap(&self) {
+        println!("Unlock bitmap");
         self.lock.store(false, Ordering::SeqCst);
     }
     pub fn lock_pages<T>(&self, addr: *mut T, size: usize) {
@@ -197,22 +206,40 @@ impl BitmapAllocator {
         }
         self.unlock_bitmap()
     }
-    pub fn request_page<T>(&self) -> Result<*mut T, RequestPageError> {
-        self.lock_bitmap();
-        for i in (0..self.number_of_pages() / 2)
-            .rev()
-            .chain(self.number_of_pages() / 2..self.number_of_pages())
-        {
+    pub fn request_page<T>(&self) -> Result<NonNull<T>, RequestPageError> {
+        println!("Requested page");
+        for i in 0..self.number_of_pages() {
+            println!("Checking page {i}");
+            self.lock_bitmap();
             if self.bitmap.get(i) {
+                self.unlock_bitmap();
                 continue;
             }
+
+            println!("Page {i} is free!");
             let addr = unsafe { self.memory_region_start.byte_add(i * PAGE_SIZE) };
-            self.lock_pages(addr, PAGE_SIZE);
             self.unlock_bitmap();
-            return Ok(addr.cast());
+            println!("Locking page {i}");
+            self.lock_pages(addr, PAGE_SIZE);
+
+            println!("Allocated address 0x{:X}", addr as usize);
+            return Ok(
+                NonNull::new(addr.cast()).expect("the requested page should not be a null ptr")
+            );
         }
-        self.unlock_bitmap();
         Err(RequestPageError::OutOfMemory)
+    }
+    pub fn request_and_clear_page<T>(&self) -> Result<NonNull<T>, RequestPageError> {
+        let page = self.request_page::<T>()?;
+        // SAFETY: This will just clear the newly allocated page,
+        // so we're not messing with other people's memory
+        unsafe {
+            let slice = core::slice::from_raw_parts_mut(page.as_ptr().cast::<u8>(), PAGE_SIZE);
+            for b in slice {
+                *b = 0;
+            }
+        }
+        Ok(page)
     }
 }
 unsafe impl Send for BitmapAllocator {}
@@ -256,6 +283,5 @@ mod tests {
         let mut bitmap_data = [0b00101000u8; 2];
         let _ = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, true) };
         assert_eq!(bitmap_data, [0, 0]);
-
     }
 }

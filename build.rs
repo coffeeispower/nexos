@@ -9,11 +9,11 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     match arch.as_str() {
         "x86_64" => {
             println!("cargo:rustc-link-arg-bin={kernel_name}=--script=conf/linker-x86_64.ld");
-        },
+        }
         "aarch64" => {
             println!("cargo:rustc-link-arg-bin={kernel_name}=--script=conf/linker-aarch64.ld");
-        },
-        other_arch => todo!("{other_arch} is not implemented yet")
+        }
+        other_arch => todo!("{other_arch} is not implemented yet"),
     }
     println!("cargo:rerun-if-env-changed=CARGO_PKG_NAME");
     println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
