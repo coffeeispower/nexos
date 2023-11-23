@@ -12,10 +12,12 @@ impl BitMap {
     /// Creates a new bitmap
     /// # Safety
     /// The caller must ensure the bitmap is placed in a safe place in memory
-    pub unsafe fn new(bitmap_pointer: *mut u8, size: usize) -> Self {
-        let slice = core::slice::from_raw_parts_mut(bitmap_pointer, size);
-        for b in slice {
-            *b = 0;
+    pub unsafe fn new(bitmap_pointer: *mut u8, size: usize, memset_0: bool) -> Self {
+        if memset_0 {
+            let slice = core::slice::from_raw_parts_mut(bitmap_pointer, size);
+            for b in slice {
+                *b = 0;
+            }
         }
         Self {
             bitmap: bitmap_pointer,
@@ -147,7 +149,8 @@ impl BitmapAllocator {
             bitmap: unsafe {
                 BitMap::new(
                     largest_mem_start.cast(),
-                    largest_mem_size.div_ceil(PAGE_SIZE*8),
+                    largest_mem_size.div_ceil(PAGE_SIZE * 8),
+                    true
                 )
             },
             memory_region_size: largest_mem_size,
@@ -224,22 +227,18 @@ mod tests {
     #[test]
     fn test_set_bit() {
         let mut bitmap_data = [0u8; 2];
-        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2) };
+        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
 
-        bitmap.try_set(2).expect("Failed to set bit");
-        assert_eq!(bitmap_data[0], 0b00100000);
-        assert_eq!(bitmap_data[1], 0);
-
-        bitmap.try_set(13).expect("Failed to set bit");
-        assert_eq!(bitmap_data[0], 0b00100000);
-        assert_eq!(bitmap_data[1], 0b00000100);
+        bitmap.set(2);
+        assert_eq!(bitmap_data, [0b00100000, 0]);
+        bitmap.set(13);
+        assert_eq!(bitmap_data, [0b00100000, 0b00000100]);
     }
 
     #[test]
     fn test_get_bit() {
-        let mut bitmap_data = [0u8; 2];
-        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2) };
-        bitmap_data = [0b00101000u8; 2];
+        let mut bitmap_data = [0b00101000u8; 2];
+        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
         assert_eq!(bitmap.try_get(4), Some(true));
         assert_eq!(bitmap.try_get(13), Some(false));
         assert_eq!(bitmap.try_get(2), Some(true));
@@ -248,9 +247,15 @@ mod tests {
     #[test]
     fn test_out_of_bounds_set() {
         let mut bitmap_data = [0u8; 2];
-        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2) };
-
+        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
         // Index out of bounds, should return None
         assert_eq!(bitmap.try_set(20), None);
+    }
+    #[test]
+    fn memset_0() {
+        let mut bitmap_data = [0b00101000u8; 2];
+        let _ = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, true) };
+        assert_eq!(bitmap_data, [0, 0]);
+
     }
 }
