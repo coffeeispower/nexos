@@ -11,6 +11,9 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 #![test_runner(crate::test_runner::run_tests)]
 #![reexport_test_harness_main = "test_main"]
+#[cfg(test)]
+#[macro_use(test)]
+extern crate test_macros;
 #[macro_use]
 pub mod io;
 #[macro_use]
@@ -48,17 +51,10 @@ pub extern "C" fn _start() -> ! {
             bootinfo.version.to_str().unwrap().to_str().unwrap(),
         );
     }
-    interrupts::load_interrupts();
     println!("{:#?}", GLOBAL_PAGE_ALLOCATOR.number_of_pages());
+    // interrupts::load_interrupts();
 
     #[cfg(test)]
     test_main();
     panic!("Reached end of main function")
-}
-#[cfg(test)]
-mod tests {
-    #[test_case]
-    fn some_shitty_test() {
-        assert_eq!(1, 0);
-    }
 }

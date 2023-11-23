@@ -1,3 +1,6 @@
+[workspace]
+members = ["crates/*"]
+
 [package]
 name = "tinyx"
 version = "0.1.0"
@@ -8,6 +11,8 @@ authors = ["Tiago Dinis <tiagodinis33@proton.me>"]
 spin = "0.9.4"
 limine = "0.1.12"
 bitflags = "2.4.1"
+[dev-dependencies]
+test_macros = { path = "crates/test_macros" }
 # backtrace = { version = "0.3.66", default-features = false }
 
 [dependencies.lazy_static]
