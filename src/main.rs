@@ -1,9 +1,14 @@
 #![no_std]
 #![no_main]
-#![feature(custom_test_frameworks)]
-#![feature(abi_x86_interrupt)]
-#![feature(alloc_error_handler)]
-#![feature(naked_functions)]
+#![feature(
+    naked_functions,
+    ptr_sub_ptr,
+    alloc_error_handler,
+    abi_x86_interrupt,
+    custom_test_frameworks,
+    int_roundings
+)]
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 #![test_runner(crate::test_runner::run_tests)]
 #![reexport_test_harness_main = "test_main"]
 #[macro_use]
@@ -16,6 +21,8 @@ pub mod interrupts;
 pub mod test_runner;
 
 use limine::BootInfoRequest;
+
+use crate::bitmap_allocator::GLOBAL_PAGE_ALLOCATOR;
 static BOOTLOADER_INFO: BootInfoRequest = BootInfoRequest::new(0);
 /// Kernel Entry Point
 ///
@@ -24,7 +31,6 @@ static BOOTLOADER_INFO: BootInfoRequest = BootInfoRequest::new(0);
 /// the bootloader will transfer control to this function.
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-
     #[cfg(target_arch = "x86_64")]
     {
         crate::arch::x86_64::serial::init();
@@ -43,8 +49,7 @@ pub extern "C" fn _start() -> ! {
         );
     }
     interrupts::load_interrupts();
-    let allocator = bitmap_allocator::BitmapAllocator::from_mmap();
-    println!("{:#?}", allocator.number_of_pages());
+    println!("{:#?}", GLOBAL_PAGE_ALLOCATOR.number_of_pages());
 
     #[cfg(test)]
     test_main();
