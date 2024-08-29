@@ -1,5 +1,5 @@
 {
-  description = "Tinyx Development Environment";
+  description = "NexOS Development Environment";
 
   inputs = {
     nixpkgs.url      = "github:NixOS/nixpkgs/nixos-unstable";

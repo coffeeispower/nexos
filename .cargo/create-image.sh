@@ -21,7 +21,7 @@ fi
 # Copy the needed files into an ISO image.
 mkdir -p $ISO_ROOT
 cp conf/limine.cfg $LIMINE_BOOTLOADER_REPO/limine{-bios.sys,-bios-cd.bin,-uefi-cd.bin} $ISO_ROOT
-cp $KERNEL $ISO_ROOT/tinyx
+cp $KERNEL $ISO_ROOT/nexos
 mkdir -p $ISO_ROOT/EFI/BOOT
 cp -v $LIMINE_BOOTLOADER_REPO/BOOTX64.EFI $ISO_ROOT/EFI/BOOT/
 cp -v $LIMINE_BOOTLOADER_REPO/BOOTIA32.EFI $ISO_ROOT/EFI/BOOT/

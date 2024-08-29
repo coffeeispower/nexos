@@ -2,7 +2,7 @@
 members = ["crates/*"]
 
 [package]
-name = "tinyx"
+name = "nexos"
 version = "0.1.0"
 edition = "2021"
 authors = ["Tiago Dinis <tiagodinis33@proton.me>"]

@@ -1,5 +1,5 @@
-# tinyx
-A kernel
+# NexOS
+Linux
 
 # Running a VM
 ## Requirements:
@@ -12,7 +12,7 @@ A kernel
 ## Steps
 1. Clone the project:
 ```bash
-git clone https://github.com/coffee-is-power/tinyx
+git clone https://github.com/coffee-is-power/nexos
 ```
 2. Build kernel and run qemu
 ```bash
