@@ -1,8 +1,9 @@
 # NexOS
 
-**NexOS** é um sistema operativo moderno e inovador, criado para repensar a experiência do utilizador e a arquitetura tradicional de sistemas baseados em Unix. Desenvolvido do zero em [Rust](https://www.rust-lang.org/), NexOS combina a robustez e a segurança da linguagem com uma abordagem minimalista e eficiente para criar um ambiente otimizado para Desktop seja poderoso e fácil de se utilizar.
+O **NexOS** é um sistema operativo moderno e inovador, criado para repensar a experiência do utilizador e a arquitetura tradicional de sistemas baseados em Unix.
+Desenvolvido do zero em [Rust](https://www.rust-lang.org/), o NexOS combina a robustez e a segurança da linguagem com uma abordagem minimalista e eficiente, para criar um sistema operativo desktop poderoso e fácil de se utilizar.
 
-O **NexOS** oferece uma experiência de sistema operativo moderna e ágil, eliminando a complexidade desnecessária das distribuições tradicionais de Linux. Com um foco na simplicidade, desempenho e usabilidade, o NexOS pretende ser o "Linux como seria se fosse projetado em 2024".
+O **NexOS** oferece uma experiência de sistema operativo moderno e rápido, sem a complexidade desnecessária das distribuições tradicionais de Linux. Com foco na simplicidade, desempenho e usabilidade, o NexOS pretende ser o "Linux como seria se fosse projetado em 2024".
 
 ## Características Principais
 
