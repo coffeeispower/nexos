@@ -9,9 +9,9 @@ O **NexOS** oferece uma experiência de sistema operativo moderno e rápido, sem
 
 - **Compositor Wayland Integrado:** O **NexOS** incorpora diretamente um compositor [Wayland](https://wayland.freedesktop.org/) no Kernel, oferecendo um ambiente gráfico rápido e responsivo sem a necessidade de camadas adicionais ou comunicação entre processos (IPC).
 - **100% Compatível com Binários de Linux:** O **NexOS** é totalmente compatível com os binários de Linux, permitindo que qualquer programa que utilize Wayland para a GUI funcione perfeitamente. Além disso, o suporte ao XWayland garante que aplicações antigas ainda baseadas em Xorg possam ser executadas sem problemas.
-- **Sistema de Separadores Inovador:** Inspirado no [Essence OS](https://nakst.gitlab.io/essence), o **NexOS** permite aos utilizadores uma forma inovadora de organizem as suas aplicações em separadores dentro de janelas criadas pelo utilizador. Cada janela criada pode conter várias aplicações abertas pelos seus respetivos separadores. 
-    > "As aplicações não são abertas em janelas próprias, ao invés disso, o utilizador cria as janelas e organiza as aplicações dentro de uma janela, como um separador".
-- **Simplicidade e Eficiência:** O **NexOS** reduz o tempo de arranque e simplifica a experiência de ambiente de trabalho, com a eliminação de um sistema de inicialização (Init) tradicional, o que reduz o número de componentes.
+- **Sistema de Separadores Inovador:** Inspirado no [Essence OS](https://nakst.gitlab.io/essence), o **NexOS** permite aos utilizadores uma forma inovadora de organizem as suas aplicações em separadores dentro de janelas criadas pelo utilizador. Cada janela criada pode conter várias aplicações abertas pelos seus respetivos separadores.
+    > "As aplicações não são abertas em janelas próprias, ao invés disso, o utilizador cria as janelas e organiza as aplicações em separadores dentro dessa janela, semelhante a um navegador".
+- **Simplicidade e Eficiência:** O **NexOS** reduz o tempo de arranque e simplifica a experiência de ambiente de trabalho, com a eliminação de um sistema de inicialização (Init) tradicional, o que reduz o número de componentes e pontos de falha.
 - **Desenvolvido em Rust:** A escolha da linguagem de programação **[Rust](https://www.rust-lang.org/)** garante a segurança de memória e um desempenho elevado, bem como, facilitar a manutenção e a evolução do código.
 
 ## Estado Atual do Projeto
