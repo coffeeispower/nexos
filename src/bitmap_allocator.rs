@@ -4,9 +4,10 @@ use core::{
 };
 
 use lazy_static::lazy_static;
-use limine::request::MemoryMapRequest;
+use spin::Mutex;
+
+use crate::limine::MEMMAP_REQ;
 static PAGE_SIZE: usize = 0x1000;
-static MEMMAP_REQ: MemoryMapRequest = MemoryMapRequest::new();
 pub struct BitMap {
     bitmap: *mut u8,
     bitmap_size: usize,
@@ -28,7 +29,7 @@ impl BitMap {
         }
     }
     /// Configures a bit from the bitmap to a the specified value, returns Some if the index is in bounds and None if not
-    pub fn try_cfg(&self, index: usize, value: bool) -> Option<()> {
+    pub fn try_cfg(&mut self, index: usize, value: bool) -> Option<()> {
         if index > (self.bitmap_size * 8) - 1 {
             None
         } else {
@@ -53,7 +54,7 @@ impl BitMap {
         }
     }
     /// Set a bit from the bitmap, returns Some if the index is in bounds and None if not
-    pub fn try_set(&self, index: usize) -> Option<()> {
+    pub fn try_set(&mut self, index: usize) -> Option<()> {
         if index > (self.bitmap_size * 8) - 1 {
             None
         } else {
@@ -66,7 +67,7 @@ impl BitMap {
         }
     }
     /// Clears a bit from the bitmap, returns Some if the index is in bounds and None if not
-    pub fn try_clear(&self, index: usize) -> Option<()> {
+    pub fn try_clear(&mut self, index: usize) -> Option<()> {
         if index > (self.bitmap_size * 8) - 1 {
             None
         } else {
@@ -78,15 +79,15 @@ impl BitMap {
             Some(())
         }
     }
-    pub fn cfg(&self, index: usize, value: bool) {
+    pub fn cfg(&mut self, index: usize, value: bool) {
         self.try_cfg(index, value)
             .expect("Tried to access bitmap out of bounds.")
     }
-    pub fn set(&self, index: usize) {
+    pub fn set(&mut self, index: usize) {
         self.try_set(index)
             .expect("Tried to access bitmap out of bounds.")
     }
-    pub fn clear(&self, index: usize) {
+    pub fn clear(&mut self, index: usize) {
         self.try_clear(index)
             .expect("Tried to access bitmap out of bounds.")
     }
@@ -144,7 +145,7 @@ impl BitmapAllocator {
         else {
             panic!("Couldn't find a usable memory region")
         };
-        let allocator = BitmapAllocator {
+        let mut allocator = BitmapAllocator {
             bitmap: unsafe {
                 BitMap::new(
                     largest_mem_start.cast(),
@@ -175,7 +176,7 @@ impl BitmapAllocator {
         println!("Unlock bitmap");
         self.lock.store(false, Ordering::SeqCst);
     }
-    pub fn lock_pages<T>(&self, addr: *mut T, size: usize) {
+    pub fn lock_pages<T>(&mut self, addr: *mut T, size: usize) {
         self.lock_bitmap();
         let rel_addr = addr as usize - self.bitmap.bitmap as usize;
         let page = rel_addr.div_floor(PAGE_SIZE);
@@ -188,7 +189,7 @@ impl BitmapAllocator {
         }
         self.unlock_bitmap()
     }
-    pub fn free_pages<T>(&self, addr: *mut T, size: usize) {
+    pub fn free_pages<T>(&mut self, addr: *mut T, size: usize) {
         self.lock_bitmap();
         let rel_addr = addr as usize - self.bitmap.bitmap as usize;
         let page = rel_addr.div_floor(PAGE_SIZE);
@@ -201,7 +202,7 @@ impl BitmapAllocator {
         }
         self.unlock_bitmap()
     }
-    pub fn request_page<T>(&self) -> Option<NonNull<T>> {
+    pub fn request_page<T>(&mut self) -> Option<NonNull<T>> {
         println!("Requested page");
         for i in 0..self.number_of_pages() {
             println!("Checking page {i}");
@@ -224,7 +225,7 @@ impl BitmapAllocator {
         }
         None
     }
-    pub fn request_and_clear_page<T>(&self) -> Option<NonNull<T>> {
+    pub fn request_and_clear_page<T>(&mut self) -> Option<NonNull<T>> {
         let page = self.request_page::<T>()?;
         // SAFETY: This will just clear the newly allocated page,
         // so we're not messing with other people's memory
@@ -242,7 +243,7 @@ unsafe impl Sync for BitmapAllocator {}
 
 
 lazy_static! {
-    pub static ref GLOBAL_PAGE_ALLOCATOR: BitmapAllocator = BitmapAllocator::from_mmap();
+    pub static ref GLOBAL_PAGE_ALLOCATOR: Mutex<BitmapAllocator> = Mutex::new(BitmapAllocator::from_mmap());
 }
 #[cfg(test)]
 mod tests {
@@ -251,7 +252,7 @@ mod tests {
     #[test]
     fn test_set_bit() {
         let mut bitmap_data = [0u8; 2];
-        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
+        let mut bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
 
         bitmap.set(2);
         assert_eq!(bitmap_data, [0b00100000, 0]);
@@ -271,7 +272,7 @@ mod tests {
     #[test]
     fn test_out_of_bounds_set() {
         let mut bitmap_data = [0u8; 2];
-        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
+        let mut bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
         // Index out of bounds, should return None
         assert_eq!(bitmap.try_set(20), None);
     }

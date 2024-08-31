@@ -22,11 +22,11 @@ pub mod arch;
 pub mod bitmap_allocator;
 pub mod interrupts;
 pub mod test_runner;
+pub mod limine;
 
-use limine::request::BootloaderInfoRequest;
+use limine::BOOTLOADER_INFO;
 
 use crate::bitmap_allocator::GLOBAL_PAGE_ALLOCATOR;
-static BOOTLOADER_INFO: BootloaderInfoRequest = BootloaderInfoRequest::new();
 /// Kernel Entry Point
 ///
 /// `_start` is defined in the linker script as the entry point for the ELF file.
@@ -51,7 +51,7 @@ pub extern "C" fn _start() -> ! {
             bootinfo.version(),
         );
     }
-    println!("{:#?}", GLOBAL_PAGE_ALLOCATOR.number_of_pages());
+    println!("{:#?}", GLOBAL_PAGE_ALLOCATOR.lock().number_of_pages());
     // interrupts::load_interrupts();
 
     #[cfg(test)]
