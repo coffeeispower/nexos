@@ -11,7 +11,7 @@ LIMINE_BOOTLOADER_REPO=$TARGET_BASEDIR/limine
 ISO_IMAGE_PATH=$KERNEL.iso
 # Clone the `limine` repository if we don't have it yet.
 if [ ! -d $LIMINE_BOOTLOADER_REPO ]; then
-    git clone $LIMINE_GIT_URL --depth=1 --branch v5.x-branch-binary $LIMINE_BOOTLOADER_REPO
+    git clone $LIMINE_GIT_URL --depth=1 --branch v8.x-binary $LIMINE_BOOTLOADER_REPO
     # Make sure we have an up-to-date version of the bootloader.
     cd $LIMINE_BOOTLOADER_REPO
     make
@@ -20,7 +20,7 @@ fi
 
 # Copy the needed files into an ISO image.
 mkdir -p $ISO_ROOT
-cp conf/limine.cfg $LIMINE_BOOTLOADER_REPO/limine{-bios.sys,-bios-cd.bin,-uefi-cd.bin} $ISO_ROOT
+cp conf/limine.conf $LIMINE_BOOTLOADER_REPO/limine{-bios.sys,-bios-cd.bin,-uefi-cd.bin} $ISO_ROOT
 cp $KERNEL $ISO_ROOT/nexos
 mkdir -p $ISO_ROOT/EFI/BOOT
 cp -v $LIMINE_BOOTLOADER_REPO/BOOTX64.EFI $ISO_ROOT/EFI/BOOT/

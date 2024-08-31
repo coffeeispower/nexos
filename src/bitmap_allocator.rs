@@ -4,9 +4,9 @@ use core::{
 };
 
 use lazy_static::lazy_static;
-use limine::MemmapRequest;
+use limine::request::MemoryMapRequest;
 static PAGE_SIZE: usize = 0x1000;
-static MEMMAP_REQ: MemmapRequest = MemmapRequest::new(0);
+static MEMMAP_REQ: MemoryMapRequest = MemoryMapRequest::new();
 pub struct BitMap {
     bitmap: *mut u8,
     bitmap_size: usize,
@@ -110,10 +110,6 @@ impl BitMap {
         }
     }
 }
-#[derive(Debug)]
-pub enum RequestPageError {
-    OutOfMemory,
-}
 pub struct BitmapAllocator {
     pub bitmap: BitMap,
     pub memory_region_start: *mut (),
@@ -126,19 +122,18 @@ impl BitmapAllocator {
     }
     pub fn from_mmap() -> Self {
         println!("Creating new bitmap allocator from memory map");
-        let memory_map = MEMMAP_REQ.get_response();
-        let memory_map = memory_map.get().expect("memory map should be available");
-        let entries = memory_map.memmap();
+        let memory_map = MEMMAP_REQ.get_response().expect("memory map should be available");
+        let entries = memory_map.entries();
         let mut largest_mem_start: Option<*mut ()> = None;
         let mut largest_mem_size: Option<usize> = None;
         for entry in entries {
-            if let limine::MemoryMapEntryType::Usable = entry.typ {
+            if entry.entry_type == limine::memory_map::EntryType::USABLE {
                 if largest_mem_size.is_none() {
-                    largest_mem_size = Some(entry.len as usize);
+                    largest_mem_size = Some(entry.length as usize);
                     largest_mem_start = Some((entry.base as usize) as *mut ());
                 } else if let Some(size) = largest_mem_size {
-                    if size < entry.len as usize {
-                        largest_mem_size = Some(entry.len as usize);
+                    if size < entry.length as usize {
+                        largest_mem_size = Some(entry.length as usize);
                         largest_mem_start = Some((entry.base as usize) as *mut ());
                     }
                 }
@@ -206,7 +201,7 @@ impl BitmapAllocator {
         }
         self.unlock_bitmap()
     }
-    pub fn request_page<T>(&self) -> Result<NonNull<T>, RequestPageError> {
+    pub fn request_page<T>(&self) -> Option<NonNull<T>> {
         println!("Requested page");
         for i in 0..self.number_of_pages() {
             println!("Checking page {i}");
@@ -223,13 +218,13 @@ impl BitmapAllocator {
             self.lock_pages(addr, PAGE_SIZE);
 
             println!("Allocated address 0x{:X}", addr as usize);
-            return Ok(
+            return Some(
                 NonNull::new(addr.cast()).expect("the requested page should not be a null ptr")
             );
         }
-        Err(RequestPageError::OutOfMemory)
+        None
     }
-    pub fn request_and_clear_page<T>(&self) -> Result<NonNull<T>, RequestPageError> {
+    pub fn request_and_clear_page<T>(&self) -> Option<NonNull<T>> {
         let page = self.request_page::<T>()?;
         // SAFETY: This will just clear the newly allocated page,
         // so we're not messing with other people's memory
@@ -239,11 +234,13 @@ impl BitmapAllocator {
                 *b = 0;
             }
         }
-        Ok(page)
+        Some(page)
     }
 }
 unsafe impl Send for BitmapAllocator {}
 unsafe impl Sync for BitmapAllocator {}
+
+
 lazy_static! {
     pub static ref GLOBAL_PAGE_ALLOCATOR: BitmapAllocator = BitmapAllocator::from_mmap();
 }

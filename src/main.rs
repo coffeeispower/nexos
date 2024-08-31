@@ -23,10 +23,10 @@ pub mod bitmap_allocator;
 pub mod interrupts;
 pub mod test_runner;
 
-use limine::BootInfoRequest;
+use limine::request::BootloaderInfoRequest;
 
 use crate::bitmap_allocator::GLOBAL_PAGE_ALLOCATOR;
-static BOOTLOADER_INFO: BootInfoRequest = BootInfoRequest::new(0);
+static BOOTLOADER_INFO: BootloaderInfoRequest = BootloaderInfoRequest::new();
 /// Kernel Entry Point
 ///
 /// `_start` is defined in the linker script as the entry point for the ELF file.
@@ -44,11 +44,11 @@ pub extern "C" fn _start() -> ! {
     }
     println!("hello, world!");
 
-    if let Some(bootinfo) = BOOTLOADER_INFO.get_response().get() {
+    if let Some(bootinfo) = BOOTLOADER_INFO.get_response() {
         println!(
             "booted by {} v{}",
-            bootinfo.name.to_str().unwrap().to_str().unwrap(),
-            bootinfo.version.to_str().unwrap().to_str().unwrap(),
+            bootinfo.name(),
+            bootinfo.version(),
         );
     }
     println!("{:#?}", GLOBAL_PAGE_ALLOCATOR.number_of_pages());

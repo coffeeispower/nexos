@@ -9,7 +9,7 @@ authors = ["Tiago Dinis <tiagodinis33@proton.me>"]
 
 [dependencies]
 spin = "0.9.4"
-limine = "0.1.12"
+limine = "0.3.0"
 bitflags = "2.4.1"
 [dev-dependencies]
 test_macros = { path = "crates/test_macros" }
@@ -24,3 +24,6 @@ opt-level = "s"
 lto = true
 strip = true
 codegen-units = 1
+
+[target.x86_64-unknown-none.dependencies]
+x86_64 = "0.15.1"
