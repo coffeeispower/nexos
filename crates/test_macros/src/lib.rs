@@ -19,8 +19,7 @@ pub fn test(args: TokenStream, input: TokenStream) -> TokenStream {
             Box::new(parse_quote! {
                 {
                     let module_path = module_path!();
-                    print!("test {}::{}...", module_path, stringify!(#test_name));
-                    println!("\x1B[1;33mignored\x1B[1;0m");
+                    println!("\x1B[1;33mIGNORED\x1B[1;0m TEST {}::{}", module_path, stringify!(#test_name));
                 }
             })
         } else {
@@ -28,11 +27,12 @@ pub fn test(args: TokenStream, input: TokenStream) -> TokenStream {
                 {
 
                     {
-                        let module_path = module_path!();
-                        print!("test {}::{}...", module_path, stringify!(#test_name));
+                        println!("\n\x1B[1;34mSTART\x1B[1;0m TEST {}::{}", module_path!(), stringify!(#test_name));
                     }
                     #input_block
-                    println!("\x1B[1;32mok\x1B[1;0m");
+                    {
+                        println!("\x1B[1;32mPASS\x1B[1;0m TEST {}::{}\n", module_path!(), stringify!(#test_name));
+                    }
                 }
             })
         },
