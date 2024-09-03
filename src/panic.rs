@@ -6,7 +6,7 @@ fn panic(info: &PanicInfo) -> ! {
     println!("Kernel got a high five with a pan: {}", info);
     #[cfg(test)]
     {
-        println!("\x1b[1;31mfail\x1b[1;0m");
+        println!("TEST \x1b[1;31mPANIC\x1b[1;0m");
         println!("---------- Test Error Message ----------");
         println!("{}", info);
         println!("----------------------------------------");

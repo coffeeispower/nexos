@@ -1,13 +1,41 @@
-use x86_64::{structures::paging::{FrameAllocator, FrameDeallocator, PageTable, PhysFrame, Size4KiB}, PhysAddr};
-use crate::bitmap_allocator::BitmapAllocator;
+use core::ops::DerefMut;
 
-unsafe impl FrameAllocator<Size4KiB> for BitmapAllocator {
+use crate::{
+    bitmap_allocator::{BitmapAllocator, GLOBAL_PAGE_ALLOCATOR, PAGE_SIZE},
+    heap::KernelHeapMapper,
+};
+use x86_64::{
+    structures::paging::{
+        FrameAllocator, FrameDeallocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB,
+    },
+    PhysAddr, VirtAddr,
+};
+
+unsafe impl<'a> FrameAllocator<Size4KiB> for BitmapAllocator<'a> {
     fn allocate_frame(&mut self) -> Option<x86_64::structures::paging::PhysFrame<Size4KiB>> {
-        Some(unsafe { PhysFrame::from_start_address_unchecked(PhysAddr::new_unsafe(self.request_and_clear_page::<PageTable>()?.as_ptr() as usize as u64))})
+        Some(PhysFrame::containing_address(PhysAddr::new(
+            self.request_page()?.get() as u64,
+        )))
     }
 }
-impl FrameDeallocator<Size4KiB> for BitmapAllocator {
+impl<'a> FrameDeallocator<Size4KiB> for BitmapAllocator<'a> {
     unsafe fn deallocate_frame(&mut self, frame: PhysFrame<Size4KiB>) {
-        self.free_pages(frame.start_address().as_u64() as *mut PageTable, 1);
+        self.free_pages(frame.start_address().as_u64() as usize, PAGE_SIZE);
+    }
+}
+
+unsafe impl<T: Mapper<Size4KiB>> KernelHeapMapper for T {
+    unsafe fn map_memory(&mut self, from: usize, to: usize) -> bool {
+        return self
+            .map_to(
+                Page::containing_address(VirtAddr::new(from as u64)),
+                PhysFrame::containing_address(PhysAddr::new(to as u64)),
+                PageTableFlags::WRITABLE
+                    | PageTableFlags::PRESENT
+                    | PageTableFlags::USER_ACCESSIBLE,
+                GLOBAL_PAGE_ALLOCATOR.lock().deref_mut(),
+            )
+            .map(|f| f.flush())
+            .is_ok();
     }
 }

@@ -24,11 +24,17 @@ pub unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static
 }
 #[cfg(test)]
 mod tests {
-    use crate::{bitmap_allocator::GLOBAL_PAGE_ALLOCATOR, limine::HHDM};
+    use core::ops::DerefMut;
+
+    use crate::{
+        bitmap_allocator::{GLOBAL_PAGE_ALLOCATOR, PAGE_SIZE},
+        limine::HHDM,
+    };
 
     use super::*;
     use x86_64::structures::paging::{
-        FrameAllocator, Mapper, OffsetPageTable, Page, PageTableFlags, PageTableIndex
+        mapper::CleanUp, FrameAllocator, Mapper, OffsetPageTable, Page, PageTableFlags,
+        PageTableIndex,
     };
     #[test]
     fn accessing_current_page_table_and_map_memory() {
@@ -46,7 +52,8 @@ mod tests {
             let mut allocator = GLOBAL_PAGE_ALLOCATOR.lock();
             let real_addr = allocator.allocate_frame().unwrap();
             use PageTableIndex as PTI;
-            let page = Page::from_page_table_indices(PTI::new(1), PTI::new(0), PTI::new(0), PTI::new(1));
+            let page =
+                Page::from_page_table_indices(PTI::new(10), PTI::new(0), PTI::new(0), PTI::new(1));
             mapper
                 .map_to(
                     page,
@@ -58,12 +65,17 @@ mod tests {
                 )
                 .unwrap()
                 .flush();
-            page.start_address().as_mut_ptr::<u64>().write_volatile(TEST_VALUE);
+            page.start_address()
+                .as_mut_ptr::<u64>()
+                .write_volatile(TEST_VALUE);
+            println!("Virtual address 0x{:X}", page.start_address().as_u64());
             assert_eq!(
                 (real_addr.start_address().as_u64() as *mut u64).read_volatile(),
                 TEST_VALUE
             );
             mapper.unmap(page).unwrap().1.flush();
+            allocator.free_pages(real_addr.start_address().as_u64() as usize, PAGE_SIZE);
+            mapper.clean_up_addr_range(Page::range_inclusive(page, page), allocator.deref_mut());
         }
     }
 }

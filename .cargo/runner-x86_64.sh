@@ -11,6 +11,7 @@ qemu-system-x86_64 \
     $QEMU_FLAGS \
     -enable-kvm \
     -machine q35 -cpu qemu64 -M smm=off \
-    -D target/x86_64-log.txt -d int,guest_errors \
+    -D target/x86_64-log.txt -d int,guest_errors -no-reboot \
     -serial stdio \
+    -m 500M \
     $ISO_IMAGE_PATH

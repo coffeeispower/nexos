@@ -1,95 +1,68 @@
-use core::{
-    ptr::NonNull,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::num::NonZeroUsize;
 
 use lazy_static::lazy_static;
+use limine::memory_map::EntryType;
 use spin::Mutex;
 
 use crate::limine::MEMMAP_REQ;
-static PAGE_SIZE: usize = 0x1000;
-pub struct BitMap {
-    bitmap: *mut u8,
-    bitmap_size: usize,
+pub const PAGE_SIZE: usize = 0x1000;
+pub struct BitMap<'a> {
+    bitmap: &'a mut [u8],
 }
-impl BitMap {
+impl<'a> BitMap<'a> {
     /// Creates a new bitmap
-    /// # Safety
-    /// The caller must ensure the bitmap is placed in a safe place in memory
-    pub unsafe fn new(bitmap_pointer: *mut u8, size: usize, memset_0: bool) -> Self {
-        if memset_0 {
-            let slice = core::slice::from_raw_parts_mut(bitmap_pointer, size);
-            for b in slice {
-                *b = 0;
-            }
-        }
-        Self {
-            bitmap: bitmap_pointer,
-            bitmap_size: size,
-        }
+    pub fn new(bitmap: &'a mut [u8]) -> Self {
+        Self { bitmap }
     }
     /// Configures a bit from the bitmap to a the specified value, returns Some if the index is in bounds and None if not
-    pub fn try_cfg(&mut self, index: usize, value: bool) -> Option<()> {
-        if index > (self.bitmap_size * 8) - 1 {
-            None
-        } else {
-            let div_index = index / 8;
-            let offset = index % 8;
-            let byte_addr = unsafe {
-                self.bitmap.offset(
-                    div_index
-                        .try_into()
-                        .expect("div_index doesn't fit into a isize"),
-                )
-            };
-            let byte = unsafe { *byte_addr };
-            unsafe {
-                *byte_addr = if value {
-                    byte | (0b10000000u8 >> offset)
-                } else {
-                    byte ^ (0b10000000u8 >> offset)
-                };
-            }
-            Some(())
+    pub fn try_cfg(&mut self, index: usize, value: bool) -> bool {
+        let div_index = index / 8;
+        if self.bitmap.len() <= div_index {
+            return false;
         }
+        let offset = index % 8;
+
+        self.bitmap[div_index] = if value {
+            self.bitmap[div_index] | (0b10000000u8 >> offset)
+        } else {
+            self.bitmap[div_index] ^ (0b10000000u8 >> offset)
+        };
+        true
     }
     /// Set a bit from the bitmap, returns Some if the index is in bounds and None if not
-    pub fn try_set(&mut self, index: usize) -> Option<()> {
-        if index > (self.bitmap_size * 8) - 1 {
-            None
-        } else {
-            let div_index = index / 8;
-            let offset = index % 8;
-            unsafe {
-                *self.bitmap.byte_add(div_index) |= 0b10000000 >> offset;
-            }
-            Some(())
+    pub fn try_set(&mut self, index: usize) -> bool {
+        let div_index = index / 8;
+        if self.bitmap.len() <= div_index {
+            return false;
         }
+        let offset = index % 8;
+        self.bitmap[div_index] |= 0b10000000 >> offset;
+        true
     }
     /// Clears a bit from the bitmap, returns Some if the index is in bounds and None if not
-    pub fn try_clear(&mut self, index: usize) -> Option<()> {
-        if index > (self.bitmap_size * 8) - 1 {
-            None
-        } else {
-            let div_index = index / 8;
-            let offset = index % 8;
-            unsafe {
-                *self.bitmap.byte_add(div_index) ^= 0b10000000 >> offset;
-            }
-            Some(())
+    pub fn try_clear(&mut self, index: usize) -> bool {
+        let div_index = index / 8;
+        if self.bitmap.len() <= div_index {
+            return false;
         }
+        let offset = index % 8;
+        self.bitmap[div_index] ^= 0b10000000 >> offset;
+        true
     }
     pub fn cfg(&mut self, index: usize, value: bool) {
-        self.try_cfg(index, value)
-            .expect("Tried to access bitmap out of bounds.")
+        assert!(
+            self.try_cfg(index, value),
+            "Tried to access bitmap out of bounds."
+        )
     }
     pub fn set(&mut self, index: usize) {
-        self.try_set(index)
-            .expect("Tried to access bitmap out of bounds.")
+        assert!(self.try_set(index), "Tried to access bitmap out of bounds");
     }
     pub fn clear(&mut self, index: usize) {
-        self.try_clear(index)
-            .expect("Tried to access bitmap out of bounds.")
+        assert!(
+            self.try_clear(index),
+            "Tried to access bitmap out of bounds"
+        );
     }
     /// Gets a bit from the bitmap
     /// # Panics
@@ -100,137 +73,105 @@ impl BitMap {
     }
     /// Gets a bit from the bitmap, returns Some if the index is in bounds and None if not
     pub fn try_get(&self, index: usize) -> Option<bool> {
-        if index > (self.bitmap_size * 8) - 1 {
-            None
-        } else {
-            let div_index = index / 8;
-            let offset = index % 8;
-            let byte = unsafe { *self.bitmap.byte_add(div_index) };
-            let masked_byte = byte & (0b10000000 >> offset);
-            Some(masked_byte >= 1)
-        }
+        let div_index = index / 8;
+        let offset = index % 8;
+        let byte = self.bitmap.get(div_index)?;
+        let masked_byte = byte & (0b10000000 >> offset);
+        Some(masked_byte >= 1)
     }
 }
-pub struct BitmapAllocator {
-    pub bitmap: BitMap,
-    pub memory_region_start: *mut (),
-    pub memory_region_size: usize,
-    pub lock: AtomicBool,
+pub struct BitmapAllocator<'a> {
+    bitmap: BitMap<'a>,
+    memory_region_start: usize,
+    memory_region_size: usize,
+    last_allocated_page_index: usize,
 }
-impl BitmapAllocator {
+impl<'a> BitmapAllocator<'a> {
     pub fn number_of_pages(&self) -> usize {
-        (self.bitmap.bitmap_size) * 8
+        self.memory_region_size.div_floor(PAGE_SIZE)
     }
-    pub fn from_mmap() -> Self {
-        println!("Creating new bitmap allocator from memory map");
-        let memory_map = MEMMAP_REQ.get_response().expect("memory map should be available");
-        let entries = memory_map.entries();
-        let mut largest_mem_start: Option<*mut ()> = None;
-        let mut largest_mem_size: Option<usize> = None;
-        for entry in entries {
-            if entry.entry_type == limine::memory_map::EntryType::USABLE {
-                if largest_mem_size.is_none() {
-                    largest_mem_size = Some(entry.length as usize);
-                    largest_mem_start = Some((entry.base as usize) as *mut ());
-                } else if let Some(size) = largest_mem_size {
-                    if size < entry.length as usize {
-                        largest_mem_size = Some(entry.length as usize);
-                        largest_mem_start = Some((entry.base as usize) as *mut ());
-                    }
-                }
-            }
-        }
-        let (Some(largest_mem_start), Some(largest_mem_size)) =
-            (largest_mem_start, largest_mem_size)
+    pub fn from_mmap() -> BitmapAllocator<'static> {
+        let memory_map = MEMMAP_REQ
+            .get_response()
+            .expect("memory map should be available");
+
+        let Some(&entry) = memory_map
+            .entries()
+            .iter()
+            .filter(|e| e.entry_type == EntryType::USABLE)
+            .max_by_key(|entry| entry.length)
         else {
             panic!("Couldn't find a usable memory region")
         };
         let mut allocator = BitmapAllocator {
             bitmap: unsafe {
-                BitMap::new(
-                    largest_mem_start.cast(),
-                    largest_mem_size.div_ceil(PAGE_SIZE * 8),
-                    true,
-                )
+                BitMap::new({
+                    let bitmap_slice = core::slice::from_raw_parts_mut(
+                        entry.base as usize as *mut u8,
+                        (entry.length as usize).div_floor(PAGE_SIZE) / 8,
+                    );
+                    bitmap_slice.fill(0);
+                    bitmap_slice
+                })
             },
-            memory_region_size: largest_mem_size,
-            memory_region_start: largest_mem_start,
-            lock: AtomicBool::new(false),
+            memory_region_size: entry.base as usize,
+            memory_region_start: entry.length as usize,
+            last_allocated_page_index: 0,
         };
-        println!("Locking bitmap pages");
+        println!(
+            "memory_region_start: {:X}, memory_region_size: {:X}",
+            allocator.memory_region_start, allocator.memory_region_size
+        );
         allocator.lock_pages(
             allocator.memory_region_start,
             allocator.number_of_pages() / 8,
         );
-        println!("Bitmap allocator created successfully");
         allocator
     }
-    fn lock_bitmap(&self) {
-        while self.lock.swap(true, Ordering::SeqCst) {
-            core::hint::spin_loop();
-            print!("Waiting for bitmap to unlock\r");
-        }
-        println!("Locked bitmap");
-    }
-    fn unlock_bitmap(&self) {
-        println!("Unlock bitmap");
-        self.lock.store(false, Ordering::SeqCst);
-    }
-    pub fn lock_pages<T>(&mut self, addr: *mut T, size: usize) {
-        self.lock_bitmap();
-        let rel_addr = addr as usize - self.bitmap.bitmap as usize;
+    pub fn lock_pages(&mut self, addr: usize, size: usize) {
+        let rel_addr = addr as usize - self.memory_region_start;
         let page = rel_addr.div_floor(PAGE_SIZE);
-        let page_end = page + (size / PAGE_SIZE);
+        let page_end = page + (size.div_ceil(PAGE_SIZE));
         for i in page..=page_end {
-            if self.bitmap.get(i) {
-                panic!("Double lock");
-            }
-            self.bitmap.set(i);
+            self.bitmap.try_set(i);
         }
-        self.unlock_bitmap()
+        self.last_allocated_page_index = page;
     }
-    pub fn free_pages<T>(&mut self, addr: *mut T, size: usize) {
-        self.lock_bitmap();
-        let rel_addr = addr as usize - self.bitmap.bitmap as usize;
+    pub fn free_pages(&mut self, addr: usize, size: usize) {
+        let rel_addr = addr - self.memory_region_start;
         let page = rel_addr.div_floor(PAGE_SIZE);
-        let page_end = page + (size / PAGE_SIZE);
+        let page_end = page + (size.div_ceil(PAGE_SIZE));
         for i in page..=page_end {
-            if self.bitmap.get(i) {
-                panic!("Double lock");
-            }
-            self.bitmap.clear(i);
+            self.bitmap.try_clear(i);
         }
-        self.unlock_bitmap()
+
+        self.last_allocated_page_index = page;
     }
-    pub fn request_page<T>(&mut self) -> Option<NonNull<T>> {
-        println!("Requested page");
-        for i in 0..self.number_of_pages() {
-            println!("Checking page {i}");
-            self.lock_bitmap();
+    pub fn request_page(&mut self) -> Option<NonZeroUsize> {
+        for i in (self.last_allocated_page_index..self.number_of_pages())
+            .chain(0..self.last_allocated_page_index)
+        {
             if self.bitmap.get(i) {
-                self.unlock_bitmap();
                 continue;
             }
-
-            println!("Page {i} is free!");
-            let addr = unsafe { self.memory_region_start.byte_add(i * PAGE_SIZE) };
-            self.unlock_bitmap();
-            println!("Locking page {i}");
-            self.lock_pages(addr, PAGE_SIZE);
-
-            println!("Allocated address 0x{:X}", addr as usize);
-            return Some(
-                NonNull::new(addr.cast()).expect("the requested page should not be a null ptr")
+            let addr = self.memory_region_start + (i * PAGE_SIZE);
+            assert!(
+                addr - self.memory_region_start <= self.memory_region_size,
+                "addr: 0x{addr:X} | self.memory_region_start: 0x{:X} | self.memory_region_size: 0x{:X}",
+                self.memory_region_start,
+                self.memory_region_size
             );
+            self.lock_pages(addr, PAGE_SIZE);
+            self.last_allocated_page_index = i;
+            return Some(NonZeroUsize::new(addr).unwrap());
         }
         None
     }
-    pub fn request_and_clear_page<T>(&mut self) -> Option<NonNull<T>> {
-        let page = self.request_page::<T>()?;
+    pub fn request_and_clear_page(&mut self) -> Option<NonZeroUsize> {
+        let page = self.request_page()?;
         // SAFETY: This will just clear the newly allocated page,
-        // so we're not messing with other people's memory
         unsafe {
-            let slice = core::slice::from_raw_parts_mut(page.as_ptr().cast::<u8>(), PAGE_SIZE);
+            let slice = core::slice::from_raw_parts_mut(page.get() as *mut u8, PAGE_SIZE);
             for b in slice {
                 *b = 0;
             }
@@ -238,12 +179,11 @@ impl BitmapAllocator {
         Some(page)
     }
 }
-unsafe impl Send for BitmapAllocator {}
-unsafe impl Sync for BitmapAllocator {}
-
+unsafe impl<'a> Send for BitmapAllocator<'a> {}
 
 lazy_static! {
-    pub static ref GLOBAL_PAGE_ALLOCATOR: Mutex<BitmapAllocator> = Mutex::new(BitmapAllocator::from_mmap());
+    pub static ref GLOBAL_PAGE_ALLOCATOR: Mutex<BitmapAllocator<'static>> =
+        Mutex::new(BitmapAllocator::from_mmap());
 }
 #[cfg(test)]
 mod tests {
@@ -252,18 +192,16 @@ mod tests {
     #[test]
     fn test_set_bit() {
         let mut bitmap_data = [0u8; 2];
-        let mut bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
-
-        bitmap.set(2);
+        BitMap::new(&mut bitmap_data).set(2);
         assert_eq!(bitmap_data, [0b00100000, 0]);
-        bitmap.set(13);
+        BitMap::new(&mut bitmap_data).set(13);
         assert_eq!(bitmap_data, [0b00100000, 0b00000100]);
     }
 
     #[test]
     fn test_get_bit() {
         let mut bitmap_data = [0b00101000u8; 2];
-        let bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
+        let bitmap = BitMap::new(&mut bitmap_data);
         assert_eq!(bitmap.try_get(4), Some(true));
         assert_eq!(bitmap.try_get(13), Some(false));
         assert_eq!(bitmap.try_get(2), Some(true));
@@ -272,14 +210,8 @@ mod tests {
     #[test]
     fn test_out_of_bounds_set() {
         let mut bitmap_data = [0u8; 2];
-        let mut bitmap = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, false) };
+        let mut bitmap = BitMap::new(&mut bitmap_data);
         // Index out of bounds, should return None
-        assert_eq!(bitmap.try_set(20), None);
-    }
-    #[test]
-    fn memset_0() {
-        let mut bitmap_data = [0b00101000u8; 2];
-        let _ = unsafe { BitMap::new(bitmap_data.as_mut_ptr(), 2, true) };
-        assert_eq!(bitmap_data, [0, 0]);
+        assert_eq!(bitmap.try_set(20), false);
     }
 }
