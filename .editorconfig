@@ -7,3 +7,5 @@ trim_trailing_whitespace = true
 tab_width = 4
 indent_style = space
 indent_size = 4
+[*.{yaml,yml}]
+tab_width = 2
