@@ -1,0 +1,19 @@
+name: Run kernel tests
+
+on: [ push ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+        id-token: "write"
+        contents: "read"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: DeterminateSystems/nix-installer-action@main
+    - uses: DeterminateSystems/magic-nix-cache-action@main
+    - name: Run tests
+      env:
+        QEMU_FLAGS: -display none
+        MEMORY: 3G
+      run: nix develop --command cargo test
