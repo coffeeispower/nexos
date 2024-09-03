@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-#
 # This script will be executed by `cargo run`.
-set -xe
 KERNEL=$1
 
 $(dirname $0)/create-image.sh $@

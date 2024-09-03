@@ -1,5 +1,6 @@
 use core::panic::PanicInfo;
 
+
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     #[cfg(not(test))]
@@ -10,6 +11,11 @@ fn panic(info: &PanicInfo) -> ! {
         println!("---------- Test Error Message ----------");
         println!("{}", info);
         println!("----------------------------------------");
+        #[cfg(all(target_arch = "x86_64", feature = "qemu-exit"))]
+        unsafe {
+            use crate::arch::x86_64::ports::write;
+            write(0xf4, 0x11);
+        }
     }
     // TODO: Show backtrace on panic, we need to implement a heap allocator first
     /*

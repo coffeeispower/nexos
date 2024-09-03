@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-#
-set -xe
-
+set -e
 LIMINE_GIT_URL="https://github.com/limine-bootloader/limine.git"
 # Cargo passes the path to the built executable as the first argument.
 KERNEL=$1
@@ -33,3 +31,4 @@ xorriso -as mkisofs -b limine-bios-cd.bin \
 rm $ISO_ROOT -rf
 # For the image to be bootable on BIOS systems, we must run `limine bios-install` on it.
 $LIMINE_BOOTLOADER_REPO/limine bios-install $ISO_IMAGE_PATH
+set +e
