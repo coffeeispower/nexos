@@ -24,7 +24,7 @@ unsafe impl GlobalAlloc for KernelHeapAllocator {
 static GLOBAL_ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
 const KERNEL_HEAP_START_ADDRESS: usize = 1024 * 1024 * 1024 * 10;
 const KERNEL_HEAP_INITIAL_SIZE: usize = 1024 * 1024;
-const KERNEL_HEAP_MAX_SIZE: usize = 1024 * 1024 * 1024 * 2;
+const KERNEL_HEAP_MAX_SIZE: usize = 1024 * 1024 * 1024 * 4;
 lazy_static! {
     #[cfg(target_arch = "x86_64")]
     static ref MAPPER: Mutex<OffsetPageTable<'static>> = unsafe {
@@ -40,7 +40,9 @@ lazy_static! {
                 .expect("Failed to initialize heap"))
     };
 }
-
+pub fn init_heap() {
+    lazy_static::initialize(&GLOBAL_KERNEL_HEAP);
+}
 #[cfg(test)]
 mod tests {
     use alloc::boxed::Box;
@@ -58,15 +60,15 @@ mod tests {
     }
 
     #[test]
-    fn push_100_elements_into_vector() {
+    fn push_one_thousand_elements_into_vector() {
         // Verifica alocação de um vetor
-
+        const SIZE: usize = 1_000;
         let mut test_vec: Vec<u64> = Vec::new();
-        for i in 0..100 {
-            test_vec.push(i);
+        for i in 0..SIZE {
+            test_vec.push(i as _);
         }
-        assert_eq!(test_vec.len(), 100);
-        for i in 0..100 {
+        assert_eq!(test_vec.len(), SIZE);
+        for i in 0..SIZE {
             assert_eq!(test_vec[i], i as u64);
         }
     }

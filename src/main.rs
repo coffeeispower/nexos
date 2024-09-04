@@ -49,6 +49,7 @@ pub extern "C" fn _start() -> ! {
     {
         // crate::arch::aarch64::serial::init();
     }
+    global_allocator::init_heap();
     println!("hello, world!");
 
     if let Some(bootinfo) = BOOTLOADER_INFO.get_response() {

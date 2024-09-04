@@ -52,6 +52,7 @@ SECTIONS {
     .comment              0 : { *(.comment) }
     .debug                0 : { *(.debug) }
     .debug_abbrev         0 : { *(.debug_abbrev) }
+    .debug_addr           0 : { *(.debug_addr) }
     .debug_aranges        0 : { *(.debug_aranges) }
     .debug_frame          0 : { *(.debug_frame) }
     .debug_funcnames      0 : { *(.debug_funcnames) }

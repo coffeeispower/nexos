@@ -1,7 +1,10 @@
+
 [build]
 target = "x86_64-unknown-none"
+rustflags = ["-Cforce-frame-pointers=yes", "-Cdebuginfo=2"]
 
 [target.aarch64-unknown-none]
 runner = ".cargo/runner-aarch64.sh"
+
 [target.x86_64-unknown-none]
 runner = ".cargo/runner-x86_64.sh"

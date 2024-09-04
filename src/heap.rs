@@ -13,6 +13,7 @@ struct Node {
 }
 impl Node {
     unsafe fn split(&mut self, first_half_length: usize) {
+        let first_half_length = first_half_length.next_power_of_two().max(2usize.pow(4));
         assert!(!self.is_in_use(), "Tried to split node in use");
         assert!(
             first_half_length <= self.length - size_of::<Self>(),
@@ -105,14 +106,15 @@ impl KernelHeap {
         Some(Self {
             start,
             current_size: initial_size_pages,
-            max_size: max_size.div_ceil(PAGE_SIZE),
+            max_size: max_size.div_floor(PAGE_SIZE),
             last_node: NonNull::new(start as *mut Node)?,
         })
     }
 
     pub fn expand_heap(&mut self, amount: usize, mapper: &mut dyn KernelHeapMapper) -> bool {
+        let amount = amount.next_power_of_two().max(2usize.pow(4));
         let new_size = self.current_size + amount.div_ceil(PAGE_SIZE);
-        if new_size > self.max_size {
+        if new_size >= self.max_size {
             return false;
         }
         for current_page in self.current_size..new_size {
@@ -120,8 +122,9 @@ impl KernelHeap {
                 return false;
             };
             let virtual_page_address = self.start + (current_page * PAGE_SIZE);
-            unsafe { mapper.map_memory(physical_page_address.into(), virtual_page_address) };
+            unsafe { mapper.map_memory(virtual_page_address, physical_page_address.into()) };
         }
+        self.current_size = new_size;
         unsafe {
             let last_node = self.last_node.as_mut();
             if last_node.is_in_use() {
@@ -144,14 +147,18 @@ impl KernelHeap {
     }
     pub fn allocate(&mut self, layout: Layout, mapper: &mut dyn KernelHeapMapper) -> *mut u8 {
         let layout = layout.align_to(16).unwrap().pad_to_align();
+        let layout = Layout::from_size_align(layout.size().next_power_of_two().max(2usize.pow(4)), layout.align()).unwrap();
         let Some(mut current_node) =
             NonNull::new(self.root_node()).map(|mut r| unsafe { r.as_mut() })
         else {
             return null_mut();
         };
-
         loop {
             if !current_node.is_in_use() {
+                if current_node.next.is_some_and(|next| !unsafe{next.as_ref()}.is_in_use()){
+                    unsafe { current_node.combine_forward() };
+                    continue;
+                }
                 if current_node.length == layout.size() {
                     current_node.set_in_use(true);
                     break current_node.data_pointer();
@@ -166,29 +173,30 @@ impl KernelHeap {
                     current_node.set_in_use(true);
                     break current_node.data_pointer();
                 }
+            } else {
             }
             if let Some(mut next) = current_node.next {
                 current_node = unsafe { next.as_mut() };
             } else {
                 if !self.expand_heap(layout.size(), mapper) {
-                    return null_mut();
+                    break null_mut();
                 }
                 current_node = unsafe { self.root_node().as_mut().unwrap() };
             }
         }
     }
     pub unsafe fn deallocate(&mut self, address: *mut u8) {
-        let mut node = &mut (*Node::from_data_pointer(address));
-        node.set_in_use(false);
-        if let Some(mut last) = node.last.filter(|last| !last.as_ref().is_in_use()) {
+        let mut node = Node::from_data_pointer(address);
+        (*node).set_in_use(false);
+        if let Some(mut last) = (*node).last.filter(|last| !last.as_ref().is_in_use()) {
             last.as_mut().combine_forward();
             node = last.as_mut();
         }
-        if node.next.is_some_and(|n| !n.as_ref().is_in_use()) {
-            node.combine_forward();
+        if (*node).next.is_some_and(|n| !n.as_ref().is_in_use()) {
+            (*node).combine_forward();
         }
-        if node.next.is_none() {
-            self.last_node = NonNull::from(node);
+        if (*node).next.is_none() {
+            self.last_node = NonNull::new(node).unwrap();
         }
     }
 }

@@ -52,16 +52,16 @@ impl<'a> BitMap<'a> {
     pub fn cfg(&mut self, index: usize, value: bool) {
         assert!(
             self.try_cfg(index, value),
-            "Tried to access bitmap out of bounds."
+            "Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8
         )
     }
     pub fn set(&mut self, index: usize) {
-        assert!(self.try_set(index), "Tried to access bitmap out of bounds");
+        assert!(self.try_set(index), "Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8);
     }
     pub fn clear(&mut self, index: usize) {
         assert!(
             self.try_clear(index),
-            "Tried to access bitmap out of bounds"
+            "Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8
         );
     }
     /// Gets a bit from the bitmap
@@ -69,7 +69,7 @@ impl<'a> BitMap<'a> {
     /// This will panic if the index is out of bounds, use [`BitMap::try_get`] if you want to handle the error
     pub fn get(&self, index: usize) -> bool {
         self.try_get(index)
-            .expect("Tried to access bitmap out of bounds.")
+            .unwrap_or_else(|| panic!("Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8))
     }
     /// Gets a bit from the bitmap, returns Some if the index is in bounds and None if not
     pub fn try_get(&self, index: usize) -> Option<bool> {
@@ -94,7 +94,7 @@ impl<'a> BitmapAllocator<'a> {
         let memory_map = MEMMAP_REQ
             .get_response()
             .expect("memory map should be available");
-
+        // dbg!(memory_map.entries().iter().filter(|e| e.entry_type == EntryType::USABLE).map(|e| dbg!(e.length)).sum::<u64>());
         let Some(&entry) = memory_map
             .entries()
             .iter()
@@ -108,18 +108,18 @@ impl<'a> BitmapAllocator<'a> {
                 BitMap::new({
                     let bitmap_slice = core::slice::from_raw_parts_mut(
                         entry.base as usize as *mut u8,
-                        (entry.length as usize).div_floor(PAGE_SIZE) / 8,
+                        (entry.length as usize).div_ceil(PAGE_SIZE*8),
                     );
                     bitmap_slice.fill(0);
                     bitmap_slice
                 })
             },
-            memory_region_size: entry.base as usize,
-            memory_region_start: entry.length as usize,
+            memory_region_size: entry.length as usize,
+            memory_region_start: entry.base as usize,
             last_allocated_page_index: 0,
         };
         println!(
-            "memory_region_start: {:X}, memory_region_size: {:X}",
+            "memory_region_start: {}, memory_region_size: {}",
             allocator.memory_region_start, allocator.memory_region_size
         );
         allocator.lock_pages(

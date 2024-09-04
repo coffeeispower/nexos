@@ -11,6 +11,9 @@ authors = ["Tiago Dinis <tiagodinis33@proton.me>"]
 spin = "0.9.4"
 limine = "0.3.0"
 bitflags = "2.4.1"
+# gimli = { version = "0.31.0", default-features = false, features = ["read"] }
+# addr2line = { version = "0.24.1", default-features = false, features = ["rustc-demangle"] }
+# object = { version = "0.36.4", default-features = false, features = ["read"] }
 [dev-dependencies]
 test_macros = { path = "crates/test_macros" }
 # backtrace = { version = "0.3.66", default-features = false }
@@ -24,7 +27,12 @@ opt-level = "s"
 lto = true
 strip = true
 codegen-units = 1
+panic = "abort"
 
+[profile.dev]
+panic = "abort"
+strip = false
+lto = false
 [target.x86_64-unknown-none.dependencies]
 x86_64 = "0.15.1"
 [features]
