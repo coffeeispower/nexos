@@ -36,8 +36,8 @@ lazy_static! {
             .spurious_vector(APIC_SPURIOUS_INTERRUPT_ID as usize)
             .timer_mode(x2apic::lapic::TimerMode::Periodic)
             .timer_divide(TimerDivide::Div2)
-            .timer_initial(1)
-            // .set_xapic_base(apic_virtual_address)
+            .timer_initial(10000)
+            .set_xapic_base(apic_virtual_address)
             .build()
             .unwrap())
     };
