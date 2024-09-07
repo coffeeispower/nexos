@@ -1,5 +1,6 @@
 use core::fmt;
 use spin::Mutex;
+use x86_64::instructions::interrupts::without_interrupts;
 
 struct Writer {}
 
@@ -22,10 +23,16 @@ impl fmt::Write for Writer {
 static WRITER: Mutex<Writer> = Mutex::new(Writer {});
 
 pub fn _print(args: fmt::Arguments) {
+    let unwrapped_print = move || {
+        let mut writer = WRITER.lock();
+        fmt::Write::write_fmt(&mut *writer, args).ok();
+    };
     // NOTE: Locking needs to happen around `print_fmt`, not `print_str`, as the former
     // will call the latter potentially multiple times per invocation.
-    let mut writer = WRITER.lock();
-    fmt::Write::write_fmt(&mut *writer, args).ok();
+    #[cfg(target_arch = "x86_64")]
+    without_interrupts(unwrapped_print);
+    #[cfg(target_arch = "aarch64")]
+    unwrapped_print();
 }
 
 #[macro_export]

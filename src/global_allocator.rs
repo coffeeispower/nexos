@@ -28,7 +28,7 @@ const KERNEL_HEAP_MAX_SIZE: usize = 1024 * 1024 * 1024 * 4;
 lazy_static! {
     #[cfg(target_arch = "x86_64")]
     static ref MAPPER: Mutex<OffsetPageTable<'static>> = unsafe {
-        use crate::arch::x86_64::active_level_4_table;
+        use crate::arch::x86_64::paging::active_level_4_table;
         use x86_64::{structures::paging::OffsetPageTable, VirtAddr};
 
         let offset = VirtAddr::new(HHDM.get_response().unwrap().offset());

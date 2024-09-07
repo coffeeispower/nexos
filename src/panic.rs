@@ -1,4 +1,8 @@
-use core::{arch::asm, panic::PanicInfo, sync::atomic::{AtomicBool, Ordering}};
+use core::{
+    arch::asm,
+    panic::PanicInfo,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 static PANIC: AtomicBool = AtomicBool::new(false);
 #[panic_handler]
@@ -29,7 +33,6 @@ fn panic(info: &PanicInfo) -> ! {
         unsafe {
             print_stack_trace();
         }
-
     }
     hcf();
 }

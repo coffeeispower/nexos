@@ -147,7 +147,11 @@ impl KernelHeap {
     }
     pub fn allocate(&mut self, layout: Layout, mapper: &mut dyn KernelHeapMapper) -> *mut u8 {
         let layout = layout.align_to(16).unwrap().pad_to_align();
-        let layout = Layout::from_size_align(layout.size().next_power_of_two().max(2usize.pow(4)), layout.align()).unwrap();
+        let layout = Layout::from_size_align(
+            layout.size().next_power_of_two().max(2usize.pow(4)),
+            layout.align(),
+        )
+        .unwrap();
         let Some(mut current_node) =
             NonNull::new(self.root_node()).map(|mut r| unsafe { r.as_mut() })
         else {
@@ -155,7 +159,10 @@ impl KernelHeap {
         };
         loop {
             if !current_node.is_in_use() {
-                if current_node.next.is_some_and(|next| !unsafe{next.as_ref()}.is_in_use()){
+                if current_node
+                    .next
+                    .is_some_and(|next| !unsafe { next.as_ref() }.is_in_use())
+                {
                     unsafe { current_node.combine_forward() };
                     continue;
                 }
@@ -226,7 +233,7 @@ mod tests {
         let initial_size = 1024 * 128; // 128 KB
         #[cfg(target_arch = "x86_64")]
         let mut mapper = unsafe {
-            use crate::arch::x86_64::active_level_4_table;
+            use crate::arch::x86_64::paging::active_level_4_table;
             use x86_64::{structures::paging::OffsetPageTable, VirtAddr};
 
             let offset = VirtAddr::new(HHDM.get_response().unwrap().offset());

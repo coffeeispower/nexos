@@ -24,10 +24,9 @@ pub mod io;
 pub mod panic;
 pub mod arch;
 pub mod bitmap_allocator;
-pub mod heap;
-pub mod interrupts;
-pub mod limine;
 pub mod global_allocator;
+pub mod heap;
+pub mod limine;
 #[cfg(test)]
 pub mod test_runner;
 
@@ -42,14 +41,11 @@ use crate::bitmap_allocator::GLOBAL_PAGE_ALLOCATOR;
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     #[cfg(target_arch = "x86_64")]
-    {
-        crate::arch::x86_64::serial::init();
-    }
+    crate::arch::x86_64::init();
     #[cfg(target_arch = "aarch64")]
     {
         // crate::arch::aarch64::serial::init();
     }
-    global_allocator::init_heap();
     println!("hello, world!");
 
     if let Some(bootinfo) = BOOTLOADER_INFO.get_response() {

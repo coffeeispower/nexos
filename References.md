@@ -8,3 +8,4 @@ Aqui estão algumas referencias e materiais que utilizei para desenvolver este p
 - Protocolo do Bootloader Limine: <https://github.com/limine-bootloader/limine/blob/v8.x/PROTOCOL.md>
 - ChatGPT (claro, estamos em 2024): <https://chatgpt.com/>
 - Implementação inicial da Heap do Poncho baseada em lista ligada: <https://github.com/Absurdponcho/PonchoOS/blob/Episode-23-AHCI-Read/kernel/src/memory/heap.cpp>
+- OSDev wiki: <https://wiki.osdev.org/>

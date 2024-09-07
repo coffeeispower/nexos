@@ -52,24 +52,34 @@ impl<'a> BitMap<'a> {
     pub fn cfg(&mut self, index: usize, value: bool) {
         assert!(
             self.try_cfg(index, value),
-            "Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8
+            "Tried to access bitmap out of bounds: index {index} vs max {}",
+            self.bitmap.len() * 8
         )
     }
     pub fn set(&mut self, index: usize) {
-        assert!(self.try_set(index), "Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8);
+        assert!(
+            self.try_set(index),
+            "Tried to access bitmap out of bounds: index {index} vs max {}",
+            self.bitmap.len() * 8
+        );
     }
     pub fn clear(&mut self, index: usize) {
         assert!(
             self.try_clear(index),
-            "Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8
+            "Tried to access bitmap out of bounds: index {index} vs max {}",
+            self.bitmap.len() * 8
         );
     }
     /// Gets a bit from the bitmap
     /// # Panics
     /// This will panic if the index is out of bounds, use [`BitMap::try_get`] if you want to handle the error
     pub fn get(&self, index: usize) -> bool {
-        self.try_get(index)
-            .unwrap_or_else(|| panic!("Tried to access bitmap out of bounds: index {index} vs max {}", self.bitmap.len() * 8))
+        self.try_get(index).unwrap_or_else(|| {
+            panic!(
+                "Tried to access bitmap out of bounds: index {index} vs max {}",
+                self.bitmap.len() * 8
+            )
+        })
     }
     /// Gets a bit from the bitmap, returns Some if the index is in bounds and None if not
     pub fn try_get(&self, index: usize) -> Option<bool> {
@@ -108,7 +118,7 @@ impl<'a> BitmapAllocator<'a> {
                 BitMap::new({
                     let bitmap_slice = core::slice::from_raw_parts_mut(
                         entry.base as usize as *mut u8,
-                        (entry.length as usize).div_ceil(PAGE_SIZE*8),
+                        (entry.length as usize).div_ceil(PAGE_SIZE * 8),
                     );
                     bitmap_slice.fill(0);
                     bitmap_slice

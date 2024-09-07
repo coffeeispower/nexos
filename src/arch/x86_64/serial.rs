@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use x86_64::instructions::interrupts::without_interrupts;
 
 use super::ports::write;
 
@@ -30,30 +31,27 @@ bitflags! {
     }
 }
 pub fn init() {
-    unsafe {
-        write(INTERRUPT_ENABLE_PORT, 0x00);
+    without_interrupts(|| {
+        unsafe {
+            // Enable DLAB
+            write(LINE_CONTROL_PORT, 0x80);
 
-        // Enable DLAB
-        write(LINE_CONTROL_PORT, 0x80);
+            // Set maximum speed to 38400 bps by configuring DLL and DLM
+            write(DATA_PORT, 0x03);
+            write(INTERRUPT_ENABLE_PORT, 0x00);
 
-        // Set maximum speed to 38400 bps by configuring DLL and DLM
-        write(DATA_PORT, 0x03);
-        write(INTERRUPT_ENABLE_PORT, 0x00);
+            // Disable DLAB and set data word length to 8 bits
+            write(LINE_CONTROL_PORT, 0x03);
 
-        // Disable DLAB and set data word length to 8 bits
-        write(LINE_CONTROL_PORT, 0x03);
+            // Enable FIFO, clear TX/RX queues and
+            // set interrupt watermark at 14 bytes
+            write(FIFO_CONTROL_PORT, 0xc7);
 
-        // Enable FIFO, clear TX/RX queues and
-        // set interrupt watermark at 14 bytes
-        write(FIFO_CONTROL_PORT, 0xc7);
-
-        // Mark data terminal ready, signal request to send
-        // and enable auxilliary output #2 (used as interrupt line for CPU)
-        write(MODEM_CONTROL_PORT, 0x0b);
-
-        // Enable interrupts
-        write(INTERRUPT_ENABLE_PORT, 0x01);
-    }
+            // Mark data terminal ready, signal request to send
+            // and enable auxilliary output #2 (used as interrupt line for CPU)
+            write(MODEM_CONTROL_PORT, 0x0b);
+        }
+    })
 }
 fn line_sts() -> LineStsFlags {
     unsafe { LineStsFlags::from_bits_truncate(super::ports::read(LINE_STATUS_PORT)) }
