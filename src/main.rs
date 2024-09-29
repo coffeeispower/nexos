@@ -27,6 +27,7 @@ pub mod bitmap_allocator;
 pub mod global_allocator;
 pub mod heap;
 pub mod limine;
+pub mod core;
 #[cfg(test)]
 pub mod test_runner;
 

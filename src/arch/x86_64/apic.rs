@@ -12,7 +12,6 @@ use x86_64::{
     structures::paging::{Mapper, Page, PageTableFlags, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
 };
-// TODO: turn this into a thread_local as it is unsafe to share LAPIC between cores
 lazy_static! {
     pub static ref LAPIC: RwLock<LocalApic> = {
         let apic_physical_address: u64 = unsafe { xapic_base() };
@@ -20,8 +19,8 @@ lazy_static! {
         unsafe {
             active_page_table_mapper()
                 .map_to(
-                    dbg!(Page::containing_address(VirtAddr::new(apic_virtual_address))),
-                    dbg!(PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(apic_physical_address))),
+                    Page::containing_address(VirtAddr::new(apic_virtual_address)),
+                    PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(apic_physical_address)),
                     PageTableFlags::WRITABLE
                             | PageTableFlags::PRESENT
                             | PageTableFlags::USER_ACCESSIBLE,

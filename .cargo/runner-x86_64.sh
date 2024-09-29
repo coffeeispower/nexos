@@ -12,7 +12,7 @@ qemu-system-x86_64 \
     -machine q35 -cpu qemu64 -M smm=off \
     -D target/x86_64-log.txt -d int,guest_errors -no-reboot \
     -serial stdio \
-    -m $MEMORY \
+    -m $MEMORY -smp 4 \
     -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
     $ISO_IMAGE_PATH
 EXITCODE=$?
