@@ -18,6 +18,7 @@ jobs:
         prefix-key: kernel
 
     - name: Run tests
+      timeout-minutes: 2
       env:
         QEMU_FLAGS: -display none
         MEMORY: 3G
