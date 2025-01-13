@@ -19,42 +19,27 @@ extern crate test_macros;
 #[macro_use]
 extern crate alloc;
 #[macro_use]
-pub mod io;
+pub mod print;
 #[macro_use]
 pub mod panic;
 pub mod arch;
 pub mod bitmap_allocator;
-pub mod global_allocator;
-pub mod heap;
 pub mod limine;
-pub mod core;
+pub mod multicore;
+pub mod kernel;
 #[cfg(test)]
 pub mod test_runner;
 
 use limine::BOOTLOADER_INFO;
 
-use crate::bitmap_allocator::GLOBAL_PAGE_ALLOCATOR;
-/// Kernel Entry Point
-///
-/// `_start` is defined in the linker script as the entry point for the ELF file.
-/// Unless the [`Entry Point`](limine::LimineEntryPointRequest) feature is requested,
-/// the bootloader will transfer control to this function.
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    #[cfg(target_arch = "x86_64")]
-    crate::arch::x86_64::init();
-    #[cfg(target_arch = "aarch64")]
-    {
-        // crate::arch::aarch64::serial::init();
-    }
-    println!("hello, world!");
+    print!("Booting NexOS v{}", env!("CARGO_PKG_VERSION"));
 
     if let Some(bootinfo) = BOOTLOADER_INFO.get_response() {
-        println!("booted by {} v{}", bootinfo.name(), bootinfo.version(),);
+        print!(" with {} v{}", bootinfo.name(), bootinfo.version(),);
     }
-    println!("{:#?}", GLOBAL_PAGE_ALLOCATOR.lock().number_of_pages());
-    // interrupts::load_interrupts();
-
+    println!();
     #[cfg(test)]
     test_main();
     panic!("Reached end of main function")

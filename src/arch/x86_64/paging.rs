@@ -1,16 +1,13 @@
 use core::ops::DerefMut;
 
 use crate::{
-    bitmap_allocator::{BitmapAllocator, GLOBAL_PAGE_ALLOCATOR, PAGE_SIZE},
-    heap::KernelHeapMapper,
-    limine::HHDM,
+    bitmap_allocator::{BitmapAllocator, GLOBAL_PAGE_ALLOCATOR, PAGE_SIZE}, kernel::memory_map::{MemoryFlags, MemoryMap}, limine::HHDM
 };
 use x86_64::{
-    structures::paging::{
+    registers::control::{Cr3, Cr3Flags}, structures::paging::{
         FrameAllocator, FrameDeallocator, Mapper, OffsetPageTable, Page, PageTable, PageTableFlags,
         PhysFrame, Size4KiB,
-    },
-    PhysAddr, VirtAddr,
+    }, PhysAddr, VirtAddr
 };
 
 unsafe impl<'a> FrameAllocator<Size4KiB> for BitmapAllocator<'a> {
@@ -25,20 +22,61 @@ impl<'a> FrameDeallocator<Size4KiB> for BitmapAllocator<'a> {
         self.free_pages(frame.start_address().as_u64() as usize, PAGE_SIZE);
     }
 }
+pub struct X86MemoryMap<M: Mapper<Size4KiB> + Send>(M, PhysFrame<Size4KiB>);
+impl<M: Mapper<Size4KiB> + Send> X86MemoryMap<M> {
+    pub unsafe fn new(mapper: M, addr: PhysFrame<Size4KiB>) -> Self {
+        Self(mapper, addr)
+    }
+}
+impl<'a> X86MemoryMap<OffsetPageTable<'a>> {
+    pub unsafe fn current_memory_map() -> Self {
+        unsafe {
+            let offset = VirtAddr::new(HHDM.get_response().unwrap().offset());
+            let active_table = active_level_4_table(offset);
+            Self::new(OffsetPageTable::new(active_table, offset), Cr3::read().0)
+        }
+    }
+}
+impl From<MemoryFlags> for PageTableFlags {
+    fn from(value: MemoryFlags) -> Self {
+        let mut x86_flags = PageTableFlags::PRESENT;
+        if value.contains(MemoryFlags::WRITABLE) {
+            x86_flags |= PageTableFlags::WRITABLE;
+        }
+        if value.contains(MemoryFlags::USER_ACCESSIBLE) {
+            x86_flags |= PageTableFlags::USER_ACCESSIBLE;
+        }
+        if value.contains(MemoryFlags::WRITE_THROUGH) {
+            x86_flags |= PageTableFlags::WRITE_THROUGH;
+        }
+        if value.contains(MemoryFlags::NO_CACHE) {
+            x86_flags |= PageTableFlags::NO_CACHE;
+        }
+        if value.contains(MemoryFlags::NO_EXECUTE) {
+            x86_flags |= PageTableFlags::NO_EXECUTE;
+        }
+        x86_flags
+    }
+}
+unsafe impl<M: Mapper<Size4KiB> + Send> MemoryMap for X86MemoryMap<M> {
+    unsafe fn map_memory(&mut self, from: usize, to: usize, flags: MemoryFlags) -> bool {
 
-unsafe impl<T: Mapper<Size4KiB>> KernelHeapMapper for T {
-    unsafe fn map_memory(&mut self, from: usize, to: usize) -> bool {
-        return self
-            .map_to(
+        return self.0.map_to(
                 Page::containing_address(VirtAddr::new(from as u64)),
                 PhysFrame::containing_address(PhysAddr::new(to as u64)),
-                PageTableFlags::WRITABLE
-                    | PageTableFlags::PRESENT
-                    | PageTableFlags::USER_ACCESSIBLE,
+                flags.into(),
                 GLOBAL_PAGE_ALLOCATOR.lock().deref_mut(),
             )
             .map(|f| f.flush())
             .is_ok();
+    }
+
+    unsafe fn unmap_memory(&mut self, from: usize) -> bool {
+        return self.0.unmap(Page::containing_address(VirtAddr::new(from as u64))).map(|f| f.1.flush()).is_ok();
+    }
+
+    unsafe fn load_memory_map(&self) {
+        Cr3::write(self.1, Cr3Flags::empty());
     }
 }
 

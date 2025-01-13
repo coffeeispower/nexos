@@ -1,16 +1,17 @@
-use crate::{heap::KernelHeap, limine::HHDM};
+use crate::kernel::KERNEL_MEMORY_MAP;
 use alloc::alloc::{GlobalAlloc, Layout};
 use core::ops::DerefMut;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use x86_64::structures::paging::OffsetPageTable;
+
+use super::heap::KernelHeap;
 struct KernelHeapAllocator;
 
 unsafe impl GlobalAlloc for KernelHeapAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let p = GLOBAL_KERNEL_HEAP
             .lock()
-            .allocate(layout, MAPPER.lock().deref_mut());
+            .allocate(layout, KERNEL_MEMORY_MAP.lock().deref_mut());
         assert!(p.is_aligned());
         p
     }
@@ -26,22 +27,10 @@ const KERNEL_HEAP_START_ADDRESS: usize = 1024 * 1024 * 1024 * 10;
 const KERNEL_HEAP_INITIAL_SIZE: usize = 1024 * 1024;
 const KERNEL_HEAP_MAX_SIZE: usize = 1024 * 1024 * 1024 * 4;
 lazy_static! {
-    #[cfg(target_arch = "x86_64")]
-    static ref MAPPER: Mutex<OffsetPageTable<'static>> = unsafe {
-        use crate::arch::x86_64::paging::active_level_4_table;
-        use x86_64::{structures::paging::OffsetPageTable, VirtAddr};
-
-        let offset = VirtAddr::new(HHDM.get_response().unwrap().offset());
-        let active_table = active_level_4_table(offset);
-        OffsetPageTable::new(active_table, offset).into()
-    };
     static ref GLOBAL_KERNEL_HEAP: Mutex<KernelHeap> = unsafe {
-        Mutex::new(KernelHeap::init(KERNEL_HEAP_START_ADDRESS, KERNEL_HEAP_MAX_SIZE, KERNEL_HEAP_INITIAL_SIZE, MAPPER.lock().deref_mut())
+        Mutex::new(KernelHeap::init(KERNEL_HEAP_START_ADDRESS, KERNEL_HEAP_MAX_SIZE, KERNEL_HEAP_INITIAL_SIZE, KERNEL_MEMORY_MAP.lock().deref_mut())
                 .expect("Failed to initialize heap"))
     };
-}
-pub fn init_heap() {
-    lazy_static::initialize(&GLOBAL_KERNEL_HEAP);
 }
 #[cfg(test)]
 mod tests {

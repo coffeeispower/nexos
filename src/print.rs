@@ -2,20 +2,15 @@ use core::fmt;
 use spin::Mutex;
 use x86_64::instructions::interrupts::without_interrupts;
 
+use crate::kernel::GLOBAL_LOGGER;
+
 struct Writer {}
 
 unsafe impl Send for Writer {}
 
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        #[cfg(target_arch = "x86_64")]
-        {
-            crate::arch::x86_64::serial::print_str(s);
-        }
-        #[cfg(target_arch = "aarch64")]
-        {
-            // crate::arch::aarch64::serial::print_str(s);
-        }
+        GLOBAL_LOGGER.lock().print_str(s);
         Ok(())
     }
 }
@@ -37,7 +32,7 @@ pub fn _print(args: fmt::Arguments) {
 
 #[macro_export]
 macro_rules! print {
-    ($($t:tt)*) => { $crate::io::_print(format_args!($($t)*)) };
+    ($($t:tt)*) => { $crate::print::_print(format_args!($($t)*)) };
 }
 
 #[macro_export]
@@ -53,7 +48,7 @@ macro_rules! dbg {
     // `$val` expression could be a block (`{ .. }`), in which case the `eprintln!`
     // will be malformed.
     () => {
-        $crate::println!("[{}:{}:{}]", $crate::file!(), $crate::line!(), $crate::column!())
+        $crate::println!("[{}:{}:{}]", core::file!(), core::line!(), core::column!())
     };
     ($val:expr $(,)?) => {
         // Use of `match` here is intentional because it affects the lifetimes
@@ -61,7 +56,7 @@ macro_rules! dbg {
         match $val {
             tmp => {
                 $crate::println!("[{}:{}:{}] {} = {:#?}",
-                    file!(), line!(), column!(), stringify!($val), &tmp);
+                    core::file!(), core::line!(), core::column!(), stringify!($val), &tmp);
                 tmp
             }
         }

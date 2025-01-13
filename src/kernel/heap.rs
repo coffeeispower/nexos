@@ -4,6 +4,7 @@ use core::{
 };
 
 use crate::bitmap_allocator::{GLOBAL_PAGE_ALLOCATOR, PAGE_SIZE};
+use super::memory_map::{MemoryFlags, MemoryMap};
 
 struct Node {
     length: usize,
@@ -58,14 +59,6 @@ impl Node {
     unsafe fn from_data_pointer(data_pointer: *mut u8) -> *mut Node {
         data_pointer.cast::<Node>().offset(-1)
     }
-    // unsafe fn walk_until_last_node(&self) -> NonNull<Node> {
-    //     let mut current_node = NonNull::from(self);
-    //     // Percorre os nós até que `next` seja `None`
-    //     while let Some(next) = current_node.as_ref().next {
-    //         current_node = next;
-    //     }
-    //     current_node
-    // }
 }
 pub struct KernelHeap {
     start: usize,
@@ -78,7 +71,7 @@ impl KernelHeap {
         start: usize,
         max_size: usize,
         initial_size: usize,
-        mapper: &mut dyn KernelHeapMapper,
+        mapper: &mut dyn MemoryMap,
     ) -> Option<Self> {
         assert!(
             initial_size <= max_size,
@@ -95,7 +88,7 @@ impl KernelHeap {
         // This allocates the necessary number of pages and maps them to a contiguous virtual memory region
         for current_page in 0..initial_size_pages {
             let page = GLOBAL_PAGE_ALLOCATOR.lock().request_page()?.into();
-            mapper.map_memory(start + (current_page * PAGE_SIZE), page);
+            mapper.map_memory(start + (current_page * PAGE_SIZE), page, MemoryFlags::default());
         }
         (*(start as *mut Node)) = Node {
             in_use: false,
@@ -111,7 +104,7 @@ impl KernelHeap {
         })
     }
 
-    pub fn expand_heap(&mut self, amount: usize, mapper: &mut dyn KernelHeapMapper) -> bool {
+    pub fn expand_heap(&mut self, amount: usize, mapper: &mut dyn MemoryMap) -> bool {
         let amount = amount.next_power_of_two().max(2usize.pow(4));
         let new_size = self.current_size + amount.div_ceil(PAGE_SIZE);
         if new_size >= self.max_size {
@@ -122,7 +115,7 @@ impl KernelHeap {
                 return false;
             };
             let virtual_page_address = self.start + (current_page * PAGE_SIZE);
-            unsafe { mapper.map_memory(virtual_page_address, physical_page_address.into()) };
+            unsafe { mapper.map_memory(virtual_page_address, physical_page_address.into(), MemoryFlags::default()) };
         }
         self.current_size = new_size;
         unsafe {
@@ -145,7 +138,7 @@ impl KernelHeap {
     fn root_node(&mut self) -> *mut Node {
         self.start as *mut Node
     }
-    pub fn allocate(&mut self, layout: Layout, mapper: &mut dyn KernelHeapMapper) -> *mut u8 {
+    pub fn allocate(&mut self, layout: Layout, mapper: &mut dyn MemoryMap) -> *mut u8 {
         let layout = layout.align_to(16).unwrap().pad_to_align();
         let layout = Layout::from_size_align(
             layout.size().next_power_of_two().max(2usize.pow(4)),
@@ -209,21 +202,12 @@ impl KernelHeap {
 }
 impl !Sync for KernelHeap {}
 unsafe impl Send for KernelHeap {}
-pub unsafe trait KernelHeapMapper {
-    unsafe fn map_memory(&mut self, from: usize, to: usize) -> bool;
-}
+
 #[cfg(test)]
 mod tests {
     use core::ops::DerefMut;
 
-    #[cfg(target_arch = "x86_64")]
-    use x86_64::{
-        structures::paging::{mapper::CleanUp as _, Page},
-        VirtAddr,
-    };
-
-    use crate::limine::HHDM;
-
+    use super::super::KERNEL_MEMORY_MAP;
     use super::*;
 
     #[test(name = "Allocate 100 times using the heap and deallocating everything afterwards")]
@@ -231,27 +215,17 @@ mod tests {
         let start_address = 1024 * 1024 * 1024 * 1024; // Um endereço de memória fictício para testes
         let max_size = 1024 * 1024; // 1 MB
         let initial_size = 1024 * 128; // 128 KB
-        #[cfg(target_arch = "x86_64")]
-        let mut mapper = unsafe {
-            use crate::arch::x86_64::paging::active_level_4_table;
-            use x86_64::{structures::paging::OffsetPageTable, VirtAddr};
-
-            let offset = VirtAddr::new(HHDM.get_response().unwrap().offset());
-            let active_table = active_level_4_table(offset);
-            OffsetPageTable::new(active_table, offset)
-        };
-        #[cfg(target_arch = "aarch64")]
-        let mapper: impl KernelHeapMapper = todo!("Not implemented yet");
+        let mut mapper = KERNEL_MEMORY_MAP.lock();
         // Inicializa a heap
         let mut heap = unsafe {
-            KernelHeap::init(start_address, max_size, initial_size, &mut mapper)
+            KernelHeap::init(start_address, max_size, initial_size, mapper.deref_mut())
                 .expect("Failed to initialize heap")
         };
         let layout = Layout::from_size_align(256, 8).expect("Invalid layout");
         let mut allocations = [null_mut::<u8>(); 100];
         for (i, ptr) in allocations.iter_mut().enumerate() {
             // Testa alocação de memória
-            *ptr = heap.allocate(layout, &mut mapper);
+            *ptr = heap.allocate(layout, mapper.deref_mut());
             assert!(
                 !ptr.is_null(),
                 "Allocation failed after allocating {i} times"
@@ -263,17 +237,7 @@ mod tests {
         }
         // Teste de expansão da heap
         let expansion_size = 1024 * 256; // 256 KB
-        let expanded = heap.expand_heap(expansion_size, &mut mapper);
+        let expanded = heap.expand_heap(expansion_size, mapper.deref_mut());
         assert!(expanded, "Heap expansion failed");
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            mapper.clean_up_addr_range(
-                Page::range_inclusive(
-                    Page::containing_address(VirtAddr::new(start_address as u64)),
-                    Page::containing_address(VirtAddr::new(max_size as u64)),
-                ),
-                GLOBAL_PAGE_ALLOCATOR.lock().deref_mut(),
-            );
-        }
     }
 }
