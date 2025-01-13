@@ -29,7 +29,7 @@ impl<'a> BitMap<'a> {
         };
         true
     }
-    /// Set a bit from the bitmap, returns Some if the index is in bounds and None if not
+    /// Set a bit from the bitmap, returns true if the index is in bounds and false if not
     pub fn try_set(&mut self, index: usize) -> bool {
         let div_index = index / 8;
         if self.bitmap.len() <= div_index {
@@ -39,7 +39,7 @@ impl<'a> BitMap<'a> {
         self.bitmap[div_index] |= 0b10000000 >> offset;
         true
     }
-    /// Clears a bit from the bitmap, returns Some if the index is in bounds and None if not
+    /// Clears a bit from the bitmap, returns true if the index is in bounds and false if not
     pub fn try_clear(&mut self, index: usize) -> bool {
         let div_index = index / 8;
         if self.bitmap.len() <= div_index {
