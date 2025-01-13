@@ -48,20 +48,19 @@ mod tests {
     use alloc::boxed::Box;
     use alloc::string::String;
     use alloc::vec::Vec;
-    #[test]
+    #[test(name = "Allocate 1 box containing an integer")]
     fn alloc_box() {
         let boxed_int = Box::new(42);
         assert_eq!(*boxed_int, 42);
     }
-    #[test]
+    #[test(name = "Try allocating a string")]
     fn string() {
         let test_string = String::from("Hello, kernel allocator!");
         assert_eq!(test_string, "Hello, kernel allocator!");
     }
 
-    #[test]
+    #[test(name = "Push 1000 integers into a vector")]
     fn push_one_thousand_elements_into_vector() {
-        // Verifica alocação de um vetor
         const SIZE: usize = 1_000;
         let mut test_vec: Vec<u64> = Vec::new();
         for i in 0..SIZE {
@@ -72,9 +71,9 @@ mod tests {
             assert_eq!(test_vec[i], i as u64);
         }
     }
-    #[test]
+    #[test(name = "Allocate a big struct inside a Box")]
     fn box_with_big_struct() {
-        // Verifica alocação de uma struct grande
+        // Try to allocate a big structure
 
         #[repr(align(16))]
         struct BigStruct {
@@ -84,9 +83,8 @@ mod tests {
         let big_struct = Box::new(BigStruct { data: [0u8; 1024] });
         assert_eq!(big_struct.data[512], 0);
     }
-    #[test]
+    #[test(name = "Allocate a lot of small objects to test fragmentation")]
     fn allocate_a_lot_of_small_objects() {
-        // Verifica alocação de múltiplos objetos pequenos
 
         let mut small_boxes: Vec<Box<u8>> = Vec::new();
         for i in 0..1000 {
@@ -100,9 +98,9 @@ mod tests {
             assert_eq!(**small_box, i as u8);
         }
     }
-    #[test]
+    #[test(name = "Allocate and deallocate vectores repeatedly")]
     fn allocate_and_deallocate_vectors() {
-        // Verifica comportamento após múltiplas alocações e desalocações
+        // Allocate and deallocate multiple vectores
 
         let mut vecs: Vec<Vec<u8>> = Vec::new();
         for _ in 0..100 {
@@ -115,7 +113,7 @@ mod tests {
             assert_eq!(v[0], 42);
         }
     }
-    #[test]
+    #[test(name = "Try concatenating strings")]
     fn concat_strings() {
         // Testa concatenar strings
 
@@ -124,7 +122,7 @@ mod tests {
         string1.push_str(&string2);
         assert_eq!(string1, "KernelAllocator");
     }
-    #[test]
+    #[test(name = "Iterating though vectors")]
     fn iterators() {
         // Testa operações com iteradores
 

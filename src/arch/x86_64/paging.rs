@@ -80,7 +80,7 @@ mod tests {
         mapper::CleanUp, FrameAllocator, Mapper, OffsetPageTable, Page, PageTableFlags,
         PageTableIndex,
     };
-    #[test]
+    #[test(name = "Map a page and then trying to access that memory through the virtual memory")]
     fn accessing_current_page_table_and_map_memory() {
         let offset = VirtAddr::new(HHDM.get_response().unwrap().offset());
         let active_table = unsafe { active_level_4_table(offset) };

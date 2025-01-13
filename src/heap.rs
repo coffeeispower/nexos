@@ -226,7 +226,7 @@ mod tests {
 
     use super::*;
 
-    #[test]
+    #[test(name = "Allocate 100 times using the heap and deallocating everything afterwards")]
     fn test_heap_allocation_and_deallocation() {
         let start_address = 1024 * 1024 * 1024 * 1024; // Um endereço de memória fictício para testes
         let max_size = 1024 * 1024; // 1 MB

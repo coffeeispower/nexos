@@ -198,8 +198,7 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Basic tests for BitMap
-    #[test]
+    #[test(name = "Try setting a bit in a BitMap")]
     fn test_set_bit() {
         let mut bitmap_data = [0u8; 2];
         BitMap::new(&mut bitmap_data).set(2);
@@ -208,7 +207,7 @@ mod tests {
         assert_eq!(bitmap_data, [0b00100000, 0b00000100]);
     }
 
-    #[test]
+    #[test(name = "Try fetching a bit in a BitMap")]
     fn test_get_bit() {
         let mut bitmap_data = [0b00101000u8; 2];
         let bitmap = BitMap::new(&mut bitmap_data);
@@ -217,7 +216,7 @@ mod tests {
         assert_eq!(bitmap.try_get(2), Some(true));
     }
 
-    #[test]
+    #[test(name = "Try accessing a BitMap out of bounds")]
     fn test_out_of_bounds_set() {
         let mut bitmap_data = [0u8; 2];
         let mut bitmap = BitMap::new(&mut bitmap_data);
